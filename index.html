@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>L'ÉLIXIR | Authentic & Inspired Luxury Perfumes Sri Lanka</title>
+  <meta name="description" content="Discover premium Inspired & 100% Authentic Designer Perfumes in Sri Lanka. Fast Islandwide Delivery, Cash on Delivery, and direct WhatsApp ordering.">
+  
+  <!-- Preconnect Fonts for ultra-fast render -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Announcement Bar -->
+  <div class="announcement-bar">
+    <span class="announcement-badge">SRI LANKA</span>
+    <span>✨ Islandwide Cash on Delivery (COD) Available • 12-16h Lasting High Concentration</span>
+  </div>
+
+  <!-- Main Header -->
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="#" class="brand-logo">
+        <span class="brand-title">L'ÉLIXIR</span>
+        <span class="brand-subtitle">Inspired & Authentic Parfums</span>
+      </a>
+
+      <div class="header-actions">
+        <a href="https://wa.me/94717122081?text=Hi!%20I%20would%20like%20to%20inquire%20about%20your%20perfume%20collection." target="_blank" rel="noopener noreferrer" class="header-contact-btn">
+          <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+          <span>WhatsApp Chat</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Presentation -->
+  <section class="hero-section">
+    <div class="container">
+      <h1 class="hero-title">Experience The Essence of <span>Pure Prestige</span></h1>
+      <p class="hero-desc">
+        Handcrafted <strong>Inspired Editions</strong> with 14h+ projection, and guaranteed <strong>100% Authentic Designer Originals</strong>. Select your preferred bottle size and order instantly via WhatsApp.
+      </p>
+    </div>
+  </section>
+
+  <!-- Filter & Catalog Section -->
+  <main class="container">
+    <div class="controls-bar">
+      <!-- Search -->
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search perfume name, brand or notes (e.g. Aventus, Sauvage, Amber)...">
+      </div>
+
+      <!-- Categories -->
+      <div class="filter-tabs">
+        <button class="filter-btn active" data-category="all">✨ All Scents</button>
+        <button class="filter-btn" data-category="inspired">👑 Inspired Editions</button>
+        <button class="filter-btn" data-category="authentic">💎 Authentic Originals</button>
+        <button class="filter-btn" data-category="men">🖤 For Men</button>
+        <button class="filter-btn" data-category="women">🌸 For Women</button>
+        <button class="filter-btn" data-category="unisex">💫 Unisex</button>
+      </div>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="product-grid" id="productGrid">
+      <!-- Rendered dynamically by app.js -->
+    </div>
+  </main>
+
+  <!-- Modal Container for Fragrance Pyramid & Detailed View -->
+  <div class="modal-overlay" id="modalContainer">
+    <div class="modal-window">
+      <button class="modal-close" onclick="closeModal()" title="Close details">✕</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Live Value Indicator (Highlights personal client integration) -->
+  <div class="client-preview-badge">
+    <span class="client-dot"></span>
+    <span>Connected to WhatsApp: <strong>+94 71 712 2081</strong></span>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h5>L'ÉLIXIR PARFUMERIE</h5>
+          <p>Sri Lanka's premier destination for exquisite Inspired Fragrances and Original Designer Perfumes. Created to redefine your signature presence.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Direct Ordering</h5>
+          <p>Click "Order via WhatsApp" on any bottle to initiate a pre-filled instant order. We confirm stock and dispatch within 24 hours.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Customer Guarantee</h5>
+          <p>Secure packaging, authentic batch verification for designer items, and islandwide cash on delivery for complete peace of mind.</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        &copy; 2026 L'ÉLIXIR Fragrances Sri Lanka. All Rights Reserved. Demo Showcase Version.
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
