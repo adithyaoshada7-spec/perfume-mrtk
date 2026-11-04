@@ -6,7 +6,7 @@
  * 3. Interactive Custom Discovery Pack Builder (15ml x 3 / 15ml x 5)
  */
 
-const WHATSAPP_NUMBER = "94717122081";
+const WHATSAPP_NUMBER = "94786623081";
 
 // 1. AUTHENTIC DECANTS CATALOG (5ml & 10ml)
 const AUTHENTIC_DECANTS = [
