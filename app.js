@@ -225,19 +225,19 @@ function buildWhatsAppUrl(product, sizeKey) {
   let text = "";
   if (isAuthentic) {
     text = 
-`💎 *AUTHENTIC DECANT ORDER ENQUIRY* 💎
+`💎 *PIYORA - AUTHENTIC DECANT ORDER* 💎
 ------------------------------------------
 🧴 *Perfume:* ${product.name}
 🏷️ *Brand:* ${product.brand}
 🔬 *Selected Decant Size:* ${sizeKey} (${sizeData.sprayCount || ''})
 💰 *Price:* ${sizeData.label}
 ------------------------------------------
-👋 Hi! I would like to order this 100% Authentic Original Decant.
+👋 Hi Piyora! I would like to order this 100% Authentic Original Decant.
 📍 Please confirm availability and cash-on-delivery details to my address.`;
   } else {
     const freeDeliveryNotice = sizeData.freeDelivery ? "✅ FREE ISLANDWIDE DELIVERY INCLUDED!" : "Standard islandwide delivery";
     text = 
-`👑 *INSPIRED 15ML PERFUME ORDER* 👑
+`👑 *PIYORA - 15ML PERFUME ORDER* 👑
 ------------------------------------------
 🧴 *Perfume / Scent:* ${product.name}
 🏷️ *Inspired By:* ${product.brand}
@@ -245,7 +245,7 @@ function buildWhatsAppUrl(product, sizeKey) {
 🚚 *Delivery:* ${freeDeliveryNotice}
 💰 *Total Price:* ${sizeData.label}
 ------------------------------------------
-👋 Hi! I would like to order this 15ml Inspired perfume selection.
+👋 Hi Piyora! I would like to order this 15ml Inspired perfume selection.
 📍 Please confirm dispatch & delivery timeframe!`;
   }
 
@@ -642,7 +642,7 @@ function updatePackBuilderUI() {
       const formattedList = chosenList.map((name, idx) => `  ${idx + 1}. ${name}`).join('\n');
       
       const msg = 
-`🎁 *CUSTOM 15ML DISCOVERY PACK ORDER* 🎁
+`🎁 *PIYORA - CUSTOM 15ML DISCOVERY PACK* 🎁
 ------------------------------------------
 📦 *Selected Pack:* ${packTitle}
 🚚 *Delivery:* ✅ FREE ISLANDWIDE DELIVERY
@@ -651,7 +651,7 @@ function updatePackBuilderUI() {
 🧴 *My Selected Scents (15ml each):*
 ${formattedList}
 ------------------------------------------
-👋 Hi! Here is my custom discovery set. Please confirm and dispatch via Cash on Delivery!`;
+👋 Hi Piyora! Here is my custom discovery set. Please confirm and dispatch via Cash on Delivery!`;
 
       orderBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
       orderBtn.innerHTML = `
