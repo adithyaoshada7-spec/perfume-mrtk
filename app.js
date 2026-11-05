@@ -1,15 +1,17 @@
 /**
- * LUXURY PERFUME SHOWCASE & ORDER ENGINE
- * Client Custom Model:
- * 1. Authentic Perfumes -> 5ml & 10ml Decants
- * 2. Inspired Perfumes -> 15ml Luxury Minis (Single, 3-Pack, 5-Pack) with FREE DELIVERY on packs!
- * 3. Interactive Custom Discovery Pack Builder (15ml x 3 / 15ml x 5)
+ * PIYORA | LUXURY PERFUME SHOWCASE & ORDER ENGINE
+ * Hybrid Supabase Database + Secret PIN Admin Integration
+ * 
+ * Capabilities:
+ * 1. Dynamic Catalog with Supabase Cloud DB + Local Storage Fallback
+ * 2. In-Stock / Out-of-Stock Status Support
+ * 3. Dynamic WhatsApp Order Number from Settings
+ * 4. Authentic Decants (5ml / 10ml) & Inspired 15ml Packs (Single, 3-Pack, 5-Pack)
+ * 5. Interactive Custom Discovery Pack Builder
  */
 
-const WHATSAPP_NUMBER = "94786623081";
-
-// 1. AUTHENTIC DECANTS CATALOG (5ml & 10ml)
-const AUTHENTIC_DECANTS = [
+// Initial Seed Catalog (Fallback when database not connected)
+const DEFAULT_SEED_PRODUCTS = [
   {
     id: "auth-aventus",
     name: "Creed Aventus (Authentic Decant)",
@@ -28,7 +30,9 @@ const AUTHENTIC_DECANTS = [
       "5ml Decant": { price: 3850, label: "Rs. 3,850", sprayCount: "~70 Sprays" },
       "10ml Decant": { price: 6900, label: "Rs. 6,900", sprayCount: "~140 Sprays" }
     },
-    defaultSize: "10ml Decant"
+    defaultSize: "10ml Decant",
+    in_stock: true,
+    display_order: 1
   },
   {
     id: "auth-sauvage",
@@ -48,7 +52,9 @@ const AUTHENTIC_DECANTS = [
       "5ml Decant": { price: 3200, label: "Rs. 3,200", sprayCount: "~70 Sprays" },
       "10ml Decant": { price: 5850, label: "Rs. 5,850", sprayCount: "~140 Sprays" }
     },
-    defaultSize: "10ml Decant"
+    defaultSize: "10ml Decant",
+    in_stock: true,
+    display_order: 2
   },
   {
     id: "auth-bleu",
@@ -68,7 +74,9 @@ const AUTHENTIC_DECANTS = [
       "5ml Decant": { price: 2950, label: "Rs. 2,950", sprayCount: "~70 Sprays" },
       "10ml Decant": { price: 5400, label: "Rs. 5,400", sprayCount: "~140 Sprays" }
     },
-    defaultSize: "10ml Decant"
+    defaultSize: "10ml Decant",
+    in_stock: true,
+    display_order: 3
   },
   {
     id: "auth-tf-orchid",
@@ -88,12 +96,10 @@ const AUTHENTIC_DECANTS = [
       "5ml Decant": { price: 3400, label: "Rs. 3,400", sprayCount: "~70 Sprays" },
       "10ml Decant": { price: 6200, label: "Rs. 6,200", sprayCount: "~140 Sprays" }
     },
-    defaultSize: "10ml Decant"
-  }
-];
-
-// 2. INSPIRED 15ML PERFUMES & BUNDLES (Single 15ml, 3-Pack, 5-Pack)
-const INSPIRED_PERFUMES = [
+    defaultSize: "10ml Decant",
+    in_stock: true,
+    display_order: 4
+  },
   {
     id: "insp-aventus",
     name: "Imperial Aventus 15ml",
@@ -113,7 +119,9 @@ const INSPIRED_PERFUMES = [
       "3-Pack (3x15ml)": { price: 3450, label: "Rs. 3,450", freeDelivery: true, desc: "3x 15ml Set (Save Rs. 300 + Free Delivery)" },
       "5-Pack (5x15ml)": { price: 5250, label: "Rs. 5,250", freeDelivery: true, desc: "5x 15ml Full Set (Save Rs. 1,000 + Free Delivery)" }
     },
-    defaultSize: "3-Pack (3x15ml)"
+    defaultSize: "3-Pack (3x15ml)",
+    in_stock: true,
+    display_order: 5
   },
   {
     id: "insp-rouge540",
@@ -134,7 +142,9 @@ const INSPIRED_PERFUMES = [
       "3-Pack (3x15ml)": { price: 3450, label: "Rs. 3,450", freeDelivery: true, desc: "3x 15ml Set (Save Rs. 300 + Free Delivery)" },
       "5-Pack (5x15ml)": { price: 5250, label: "Rs. 5,250", freeDelivery: true, desc: "5x 15ml Full Set (Save Rs. 1,000 + Free Delivery)" }
     },
-    defaultSize: "3-Pack (3x15ml)"
+    defaultSize: "3-Pack (3x15ml)",
+    in_stock: true,
+    display_order: 6
   },
   {
     id: "insp-sauvage",
@@ -155,7 +165,9 @@ const INSPIRED_PERFUMES = [
       "3-Pack (3x15ml)": { price: 3450, label: "Rs. 3,450", freeDelivery: true, desc: "3x 15ml Set (Save Rs. 300 + Free Delivery)" },
       "5-Pack (5x15ml)": { price: 5250, label: "Rs. 5,250", freeDelivery: true, desc: "5x 15ml Full Set (Save Rs. 1,000 + Free Delivery)" }
     },
-    defaultSize: "5-Pack (5x15ml)"
+    defaultSize: "5-Pack (5x15ml)",
+    in_stock: true,
+    display_order: 7
   },
   {
     id: "insp-libre",
@@ -176,7 +188,9 @@ const INSPIRED_PERFUMES = [
       "3-Pack (3x15ml)": { price: 3450, label: "Rs. 3,450", freeDelivery: true, desc: "3x 15ml Set (Save Rs. 300 + Free Delivery)" },
       "5-Pack (5x15ml)": { price: 5250, label: "Rs. 5,250", freeDelivery: true, desc: "5x 15ml Full Set (Save Rs. 1,000 + Free Delivery)" }
     },
-    defaultSize: "Single 15ml"
+    defaultSize: "Single 15ml",
+    in_stock: true,
+    display_order: 8
   },
   {
     id: "insp-tobacco-vanille",
@@ -197,29 +211,219 @@ const INSPIRED_PERFUMES = [
       "3-Pack (3x15ml)": { price: 3450, label: "Rs. 3,450", freeDelivery: true, desc: "3x 15ml Set (Save Rs. 300 + Free Delivery)" },
       "5-Pack (5x15ml)": { price: 5250, label: "Rs. 5,250", freeDelivery: true, desc: "5x 15ml Full Set (Save Rs. 1,000 + Free Delivery)" }
     },
-    defaultSize: "3-Pack (3x15ml)"
+    defaultSize: "3-Pack (3x15ml)",
+    in_stock: true,
+    display_order: 9
   }
 ];
 
-// Unified catalog
-const ALL_PRODUCTS = [...AUTHENTIC_DECANTS, ...INSPIRED_PERFUMES];
-
-// State per card
+// Runtime catalog
+let RUNTIME_CATALOG = [];
 const cardStates = {};
 
+// ========================================================
+// 1. CONFIGURATION & DATABASE LAYER (SUPABASE + LOCAL)
+// ========================================================
+
+function getStoreConfig() {
+  try {
+    const raw = localStorage.getItem("piyora_settings");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return {
+    whatsapp_number: "94786623081",
+    admin_pin: "7120",
+    supabase_url: "",
+    supabase_key: ""
+  };
+}
+
+function saveStoreConfig(cfg) {
+  const current = getStoreConfig();
+  const updated = { ...current, ...cfg };
+  localStorage.setItem("piyora_settings", JSON.stringify(updated));
+}
+
+function getWhatsAppNumber() {
+  return getStoreConfig().whatsapp_number || "94786623081";
+}
+
+function getAdminPin() {
+  return getStoreConfig().admin_pin || "7120";
+}
+
+function getSupabaseCredentials() {
+  const cfg = getStoreConfig();
+  return { url: cfg.supabase_url || "", key: cfg.supabase_key || "" };
+}
+
+function getSupabaseClient() {
+  const { url, key } = getSupabaseCredentials();
+  if (url && key && window.supabase && typeof window.supabase.createClient === "function") {
+    try {
+      return window.supabase.createClient(url, key);
+    } catch (e) {
+      console.warn("Supabase init error:", e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Load Catalog Data from Supabase if connected, else localStorage, else default seed
+ */
+async function loadCatalogData() {
+  const client = getSupabaseClient();
+  
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('perfumes')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        RUNTIME_CATALOG = data.map(row => ({
+          id: row.id,
+          name: row.name,
+          brand: row.brand,
+          category: row.category,
+          gender: row.gender,
+          image: row.image,
+          badge: row.badge,
+          accords: typeof row.accords === 'string' ? JSON.parse(row.accords) : (row.accords || []),
+          topNotes: row.top_notes || "",
+          heartNotes: row.heart_notes || "",
+          baseNotes: row.base_notes || "",
+          longevity: row.longevity || "14h+ Lasting",
+          description: row.description || "",
+          sizes: typeof row.sizes === 'string' ? JSON.parse(row.sizes) : row.sizes,
+          defaultSize: row.category === 'authentic' ? '10ml Decant' : '3-Pack (3x15ml)',
+          in_stock: row.in_stock !== false,
+          display_order: row.display_order || 0
+        }));
+
+        // Cache locally
+        localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
+        return RUNTIME_CATALOG;
+      }
+    } catch (e) {
+      console.warn("Error fetching from Supabase, falling back to local:", e);
+    }
+  }
+
+  // Fallback to local storage
+  try {
+    const cached = localStorage.getItem("piyora_catalog");
+    if (cached) {
+      RUNTIME_CATALOG = JSON.parse(cached);
+      return RUNTIME_CATALOG;
+    }
+  } catch (e) {}
+
+  // Fallback to initial seeds
+  RUNTIME_CATALOG = JSON.parse(JSON.stringify(DEFAULT_SEED_PRODUCTS));
+  localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
+  return RUNTIME_CATALOG;
+}
+
+function getActiveCatalog() {
+  if (!RUNTIME_CATALOG || RUNTIME_CATALOG.length === 0) {
+    RUNTIME_CATALOG = JSON.parse(JSON.stringify(DEFAULT_SEED_PRODUCTS));
+  }
+  return RUNTIME_CATALOG;
+}
+
+/**
+ * Sync updates to Supabase and LocalStorage
+ */
+async function syncProductUpdate(product) {
+  // Update local runtime
+  const idx = RUNTIME_CATALOG.findIndex(p => p.id === product.id);
+  if (idx !== -1) RUNTIME_CATALOG[idx] = product;
+  localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
+
+  // Sync to Supabase
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client
+        .from('perfumes')
+        .update({
+          name: product.name,
+          brand: product.brand,
+          sizes: product.sizes,
+          in_stock: product.in_stock !== false
+        })
+        .eq('id', product.id);
+    } catch (e) {
+      console.error("Supabase update error:", e);
+    }
+  }
+}
+
+async function syncProductInsert(product) {
+  RUNTIME_CATALOG.unshift(product);
+  localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client
+        .from('perfumes')
+        .insert({
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          gender: product.gender,
+          image: product.image,
+          badge: product.badge,
+          accords: product.accords,
+          top_notes: product.topNotes,
+          heart_notes: product.heartNotes,
+          base_notes: product.baseNotes,
+          longevity: product.longevity,
+          description: product.description,
+          sizes: product.sizes,
+          in_stock: product.in_stock !== false,
+          display_order: 0
+        });
+    } catch (e) {
+      console.error("Supabase insert error:", e);
+    }
+  }
+}
+
+async function syncProductDelete(productId) {
+  RUNTIME_CATALOG = RUNTIME_CATALOG.filter(p => p.id !== productId);
+  localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from('perfumes').delete().eq('id', productId);
+    } catch (e) {
+      console.error("Supabase delete error:", e);
+    }
+  }
+}
+
+// ========================================================
+// 2. STOREFRONT WHATSAPP & ORDER LOGIC
+// ========================================================
+
 function initStates() {
-  ALL_PRODUCTS.forEach(p => {
+  getActiveCatalog().forEach(p => {
     cardStates[p.id] = {
-      selectedSize: p.defaultSize
+      selectedSize: p.defaultSize || Object.keys(p.sizes)[0]
     };
   });
 }
 
-/**
- * WhatsApp Order URL Builder
- */
 function buildWhatsAppUrl(product, sizeKey) {
-  const sizeData = product.sizes[sizeKey];
+  const currentWhatsApp = getWhatsAppNumber();
+  const sizeData = product.sizes[sizeKey] || Object.values(product.sizes)[0];
   const isAuthentic = product.category === "authentic";
 
   let text = "";
@@ -249,11 +453,11 @@ function buildWhatsAppUrl(product, sizeKey) {
 📍 Please confirm dispatch & delivery timeframe!`;
   }
 
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${currentWhatsApp}?text=${encodeURIComponent(text)}`;
 }
 
 /**
- * Render Catalog Grid
+ * Render Storefront Products
  */
 function renderProducts(items) {
   const grid = document.getElementById("productGrid");
@@ -270,18 +474,19 @@ function renderProducts(items) {
   }
 
   grid.innerHTML = items.map(p => {
-    const activeSize = cardStates[p.id]?.selectedSize || p.defaultSize;
-    const sizeData = p.sizes[activeSize];
+    const activeSize = cardStates[p.id]?.selectedSize || p.defaultSize || Object.keys(p.sizes)[0];
+    const sizeData = p.sizes[activeSize] || Object.values(p.sizes)[0];
     const isAuthentic = p.category === "authentic";
     const badgeClass = isAuthentic ? "badge-authentic" : "badge-inspired";
-
+    const isInStock = p.in_stock !== false;
     const hasFreeDelivery = sizeData.freeDelivery === true;
 
     return `
-      <div class="product-card" id="card-${p.id}">
+      <div class="product-card ${!isInStock ? 'card-out-of-stock' : ''}" id="card-${p.id}">
         <div class="card-media" onclick="openDetailsModal('${p.id}')">
           <span class="type-badge ${badgeClass}">${p.badge}</span>
-          ${hasFreeDelivery ? '<span class="free-shipping-tag">🚚 FREE DELIVERY</span>' : ''}
+          ${hasFreeDelivery && isInStock ? '<span class="free-shipping-tag">🚚 FREE DELIVERY</span>' : ''}
+          ${!isInStock ? '<span class="badge-out-stock-tag">⚠️ OUT OF STOCK</span>' : ''}
           <span class="longevity-badge">
             <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/></svg>
             ${p.longevity}
@@ -297,7 +502,7 @@ function renderProducts(items) {
           <h3 class="card-title">${p.name}</h3>
 
           <div class="accords-preview">
-            ${p.accords.map(a => `<span class="accord-tag">${a}</span>`).join('')}
+            ${(p.accords || []).map(a => `<span class="accord-tag">${a}</span>`).join('')}
           </div>
 
           <div class="size-selector-label">
@@ -324,20 +529,32 @@ function renderProducts(items) {
                 <span class="current-price" id="price-val-${p.id}">${sizeData.label}</span>
               </div>
               <div class="stock-indicator">
-                <span class="stock-dot"></span> In Stock
+                <span class="stock-dot ${!isInStock ? 'stock-dot-red' : ''}"></span>
+                <span style="${!isInStock ? 'color:#ef4444;' : ''}">${isInStock ? 'In Stock' : 'Out of Stock'}</span>
               </div>
             </div>
 
-            <a 
-              href="${buildWhatsAppUrl(p, activeSize)}" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              class="btn-whatsapp-order" 
-              id="wa-btn-${p.id}"
-            >
-              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
-              <span>Order via WhatsApp</span>
-            </a>
+            ${isInStock ? `
+              <a 
+                href="${buildWhatsAppUrl(p, activeSize)}" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="btn-whatsapp-order" 
+                id="wa-btn-${p.id}"
+              >
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+                <span>Order via WhatsApp</span>
+              </a>
+            ` : `
+              <a 
+                href="https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(`Hi Piyora! Please notify me when ${product.name} is back in stock.`)}" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="btn-whatsapp-order btn-out-stock-cta"
+              >
+                <span>Notify When in Stock</span>
+              </a>
+            `}
           </div>
         </div>
       </div>
@@ -345,11 +562,8 @@ function renderProducts(items) {
   }).join('');
 }
 
-/**
- * Handle Card Size Toggle
- */
 function changeCardSize(productId, sizeKey) {
-  const product = ALL_PRODUCTS.find(p => p.id === productId);
+  const product = getActiveCatalog().find(p => p.id === productId);
   if (!product) return;
 
   cardStates[productId].selectedSize = sizeKey;
@@ -365,27 +579,30 @@ function changeCardSize(productId, sizeKey) {
     const labelSize = document.getElementById(`label-size-${productId}`);
     if (labelSize) labelSize.textContent = sizeKey;
 
+    const sizeData = product.sizes[sizeKey] || Object.values(product.sizes)[0];
     const priceVal = document.getElementById(`price-val-${productId}`);
-    if (priceVal) priceVal.textContent = product.sizes[sizeKey].label;
+    if (priceVal) priceVal.textContent = sizeData.label;
 
     const waBtn = document.getElementById(`wa-btn-${productId}`);
-    if (waBtn) waBtn.href = buildWhatsAppUrl(product, sizeKey);
+    if (waBtn && product.in_stock !== false) waBtn.href = buildWhatsAppUrl(product, sizeKey);
   }
 }
 
 /**
- * Modal View
+ * Details Modal
  */
 function openDetailsModal(productId) {
-  const product = ALL_PRODUCTS.find(p => p.id === productId);
+  const product = getActiveCatalog().find(p => p.id === productId);
   if (!product) return;
 
-  const currentSize = cardStates[productId]?.selectedSize || product.defaultSize;
-  const sizeData = product.sizes[currentSize];
+  const currentSize = cardStates[productId]?.selectedSize || product.defaultSize || Object.keys(product.sizes)[0];
+  const sizeData = product.sizes[currentSize] || Object.values(product.sizes)[0];
   const isAuthentic = product.category === "authentic";
+  const isInStock = product.in_stock !== false;
 
   const modalContainer = document.getElementById("modalContainer");
   const modalBody = document.getElementById("modalBody");
+  if (!modalContainer || !modalBody) return;
 
   modalBody.innerHTML = `
     <div class="modal-grid">
@@ -448,24 +665,37 @@ function openDetailsModal(productId) {
             <div style="font-family: var(--font-serif); font-size: 1.6rem; font-weight: 700; color: #fff;" id="modal-price-val">
               ${sizeData.label}
             </div>
-            ${sizeData.freeDelivery ? '<div style="font-size:0.75rem; color:#4ade80; font-weight:600; margin-top:2px;">✨ Free Islandwide Delivery Included!</div>' : ''}
+            ${sizeData.freeDelivery && isInStock ? '<div style="font-size:0.75rem; color:#4ade80; font-weight:600; margin-top:2px;">✨ Free Islandwide Delivery Included!</div>' : ''}
           </div>
           <div class="stock-indicator">
-            <span class="stock-dot"></span> Ready to Dispatch
+            <span class="stock-dot ${!isInStock ? 'stock-dot-red' : ''}"></span> 
+            <span style="${!isInStock ? 'color:#ef4444;' : ''}">${isInStock ? 'In Stock' : 'Out of Stock'}</span>
           </div>
         </div>
 
-        <a 
-          href="${buildWhatsAppUrl(product, currentSize)}" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          class="btn-whatsapp-order" 
-          id="modal-wa-btn"
-          style="padding: 0.9rem 1.5rem; font-size: 0.95rem;"
-        >
-          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
-          <span>Order via WhatsApp (${currentSize})</span>
-        </a>
+        ${isInStock ? `
+          <a 
+            href="${buildWhatsAppUrl(product, currentSize)}" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="btn-whatsapp-order" 
+            id="modal-wa-btn"
+            style="padding: 0.9rem 1.5rem; font-size: 0.95rem;"
+          >
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+            <span>Order via WhatsApp (${currentSize})</span>
+          </a>
+        ` : `
+          <a 
+            href="https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(`Hi Piyora! Please notify me when ${product.name} is back in stock.`)}" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="btn-whatsapp-order btn-out-stock-cta"
+            style="padding: 0.9rem 1.5rem; font-size: 0.95rem;"
+          >
+            <span>Notify When in Stock</span>
+          </a>
+        `}
       </div>
     </div>
   `;
@@ -476,10 +706,10 @@ function openDetailsModal(productId) {
 
 function changeModalSize(productId, sizeKey) {
   changeCardSize(productId, sizeKey);
-  const product = ALL_PRODUCTS.find(p => p.id === productId);
+  const product = getActiveCatalog().find(p => p.id === productId);
   if (!product) return;
 
-  const sizeData = product.sizes[sizeKey];
+  const sizeData = product.sizes[sizeKey] || Object.values(product.sizes)[0];
   const modal = document.getElementById("modalBody");
   if (modal) {
     const btns = modal.querySelectorAll('.size-btn');
@@ -495,7 +725,7 @@ function changeModalSize(productId, sizeKey) {
     if (priceVal) priceVal.textContent = sizeData.label;
 
     const waBtn = document.getElementById("modal-wa-btn");
-    if (waBtn) {
+    if (waBtn && product.in_stock !== false) {
       waBtn.href = buildWhatsAppUrl(product, sizeKey);
       waBtn.querySelector('span').textContent = `Order via WhatsApp (${sizeKey})`;
     }
@@ -510,19 +740,21 @@ function closeModal() {
   }
 }
 
-// Filter logic
+// ========================================================
+// 3. STOREFRONT FILTERING & PACK BUILDER
+// ========================================================
+
 let currentCategory = "all";
 let searchKeyword = "";
 
 function applyFilters() {
-  let list = ALL_PRODUCTS;
+  let list = getActiveCatalog();
 
   if (currentCategory === "authentic") {
     list = list.filter(p => p.category === "authentic");
   } else if (currentCategory === "inspired") {
     list = list.filter(p => p.category === "inspired");
   } else if (currentCategory === "packs") {
-    // Show inspired packs
     list = list.filter(p => p.category === "inspired");
   } else if (currentCategory === "men") {
     list = list.filter(p => p.gender === "men");
@@ -537,22 +769,24 @@ function applyFilters() {
     list = list.filter(p => 
       p.name.toLowerCase().includes(term) ||
       p.brand.toLowerCase().includes(term) ||
-      p.accords.some(a => a.toLowerCase().includes(term))
+      (p.accords && p.accords.some(a => a.toLowerCase().includes(term)))
     );
   }
 
   renderProducts(list);
 }
 
-// 3. INTERACTIVE DISCOVERY PACK BUILDER LOGIC (15ml x 3 or 15ml x 5)
-let selectedPackTier = "3-pack"; // "3-pack" (Rs. 3,450) or "5-pack" (Rs. 5,250)
+// Discovery Pack Builder
+let selectedPackTier = "3-pack";
 const selectedScents = new Set();
 
 function initPackBuilder() {
   const container = document.getElementById("packScentList");
   if (!container) return;
 
-  container.innerHTML = INSPIRED_PERFUMES.map(p => `
+  const inspiredOnly = getActiveCatalog().filter(p => p.category === "inspired" && p.in_stock !== false);
+
+  container.innerHTML = inspiredOnly.map(p => `
     <div class="pack-scent-item" id="scent-choice-${p.id}" onclick="toggleScentSelection('${p.id}')">
       <input type="checkbox" id="chk-${p.id}" style="pointer-events:none;">
       <div style="flex:1;">
@@ -570,7 +804,6 @@ function selectPackTier(tier) {
   selectedPackTier = tier;
   const maxAllowed = tier === "3-pack" ? 3 : 5;
   
-  // If more selected than allowed, trim
   if (selectedScents.size > maxAllowed) {
     selectedScents.clear();
   }
@@ -594,7 +827,7 @@ function toggleScentSelection(productId) {
     selectedScents.delete(productId);
   } else {
     if (selectedScents.size >= maxAllowed) {
-      alert(`ඔබ තෝරාගත් පැක් එකට උපරිම තෝරාගත හැක්කේ Perfumes ${maxAllowed}ක් පමණි. (Max ${maxAllowed} scents allowed for this pack)`);
+      alert(`ඔබ තෝරාගත් පැක් එකට උපරිම තෝරාගත හැක්කේ Perfumes ${maxAllowed}ක් පමණි. (Max ${maxAllowed} scents allowed)`);
       return;
     }
     selectedScents.add(productId);
@@ -613,8 +846,8 @@ function updatePackBuilderUI() {
   if (countSpan) countSpan.textContent = `${selectedScents.size} / ${maxAllowed}`;
   if (priceSpan) priceSpan.textContent = price;
 
-  // Highlight items
-  INSPIRED_PERFUMES.forEach(p => {
+  const catalog = getActiveCatalog();
+  catalog.filter(p => p.category === "inspired").forEach(p => {
     const itemEl = document.getElementById(`scent-choice-${p.id}`);
     const chk = document.getElementById(`chk-${p.id}`);
     if (itemEl && chk) {
@@ -630,7 +863,7 @@ function updatePackBuilderUI() {
 
   if (orderBtn) {
     const chosenList = Array.from(selectedScents).map(id => {
-      const p = INSPIRED_PERFUMES.find(item => item.id === id);
+      const p = catalog.find(item => item.id === id);
       return p ? p.name : id;
     });
 
@@ -653,7 +886,7 @@ ${formattedList}
 ------------------------------------------
 👋 Hi Piyora! Here is my custom discovery set. Please confirm and dispatch via Cash on Delivery!`;
 
-      orderBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+      orderBtn.href = `https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(msg)}`;
       orderBtn.innerHTML = `
         <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
         <span>Order Custom Pack via WhatsApp (${price} • Free Delivery)</span>
@@ -669,40 +902,59 @@ ${formattedList}
   }
 }
 
-// Setup
-document.addEventListener("DOMContentLoaded", () => {
-  initStates();
-  renderProducts(ALL_PRODUCTS);
-  initPackBuilder();
+// ========================================================
+// 4. STOREFRONT DOM INITIALIZATION
+// ========================================================
 
-  // Tabs
-  const tabs = document.querySelectorAll(".filter-btn");
-  tabs.forEach(btn => {
-    btn.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("active"));
-      btn.classList.add("active");
-      currentCategory = btn.getAttribute("data-category");
-      applyFilters();
+document.addEventListener("DOMContentLoaded", async () => {
+  // If we are on index.html (storefront), initialize
+  const grid = document.getElementById("productGrid");
+  if (grid) {
+    await loadCatalogData();
+    initStates();
+    renderProducts(getActiveCatalog());
+    initPackBuilder();
+
+    // Update WhatsApp links on page to match settings
+    const currentNumber = getWhatsAppNumber();
+    const chatBtn = document.querySelector(".header-contact-btn");
+    if (chatBtn) {
+      chatBtn.href = `https://wa.me/${currentNumber}?text=${encodeURIComponent("Hi Piyora! I would like to inquire about your Decants and 15ml Perfume Packs.")}`;
+    }
+    const indicatorText = document.querySelector(".client-preview-badge strong");
+    if (indicatorText) {
+      indicatorText.textContent = `+${currentNumber.slice(0, 2)} ${currentNumber.slice(2, 4)} ${currentNumber.slice(4, 7)} ${currentNumber.slice(7)}`;
+    }
+
+    // Category Tabs
+    const tabs = document.querySelectorAll(".filter-btn");
+    tabs.forEach(btn => {
+      btn.addEventListener("click", () => {
+        tabs.forEach(t => t.classList.remove("active"));
+        btn.classList.add("active");
+        currentCategory = btn.getAttribute("data-category");
+        applyFilters();
+      });
     });
-  });
 
-  // Search
-  const searchInput = document.getElementById("searchInput");
-  if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
-      searchKeyword = e.target.value;
-      applyFilters();
+    // Search
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        searchKeyword = e.target.value;
+        applyFilters();
+      });
+    }
+
+    // Modal
+    const modalContainer = document.getElementById("modalContainer");
+    if (modalContainer) {
+      modalContainer.addEventListener("click", (e) => {
+        if (e.target === modalContainer) closeModal();
+      });
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
     });
   }
-
-  // Modal
-  const modalContainer = document.getElementById("modalContainer");
-  if (modalContainer) {
-    modalContainer.addEventListener("click", (e) => {
-      if (e.target === modalContainer) closeModal();
-    });
-  }
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeModal();
-  });
 });

@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piyora | Private Admin Portal</title>
+  
+  <!-- Preconnect Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Supabase JS Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-body">
+
+  <!-- ========================================================
+       1. PIN AUTHENTICATION GATE SCREEN
+       ======================================================== -->
+  <div class="pin-gate-overlay" id="pinGateOverlay">
+    <div class="pin-card">
+      <img src="logo.jpg" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/adithyaoshada7-spec/perfume-mrtk/main/logo.jpg';" alt="Piyora" class="pin-logo">
+      <h2 class="pin-title">PIYORA <span>PORTAL</span></h2>
+      <p class="pin-subtitle">Please enter your 4-digit Store PIN</p>
+
+      <div class="pin-dots-display" id="pinDotsDisplay">
+        <span class="pin-dot" id="dot-0"></span>
+        <span class="pin-dot" id="dot-1"></span>
+        <span class="pin-dot" id="dot-2"></span>
+        <span class="pin-dot" id="dot-3"></span>
+      </div>
+
+      <div class="pin-error-msg" id="pinErrorMsg"></div>
+
+      <!-- Numeric Keypad -->
+      <div class="pin-keypad">
+        <button type="button" class="key-btn" onclick="pressPinDigit('1')">1</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('2')">2</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('3')">3</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('4')">4</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('5')">5</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('6')">6</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('7')">7</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('8')">8</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('9')">9</button>
+        <button type="button" class="key-btn key-action" onclick="clearPin()">C</button>
+        <button type="button" class="key-btn" onclick="pressPinDigit('0')">0</button>
+        <button type="button" class="key-btn key-action" onclick="submitPin()">✓</button>
+      </div>
+
+      <div style="margin-top: 1.5rem; font-size: 0.72rem; color: var(--text-dim);">
+        Piyora Storefront Administration • Confidential
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       2. ADMIN DASHBOARD VIEW (Shown only after correct PIN)
+       ======================================================== -->
+  <div class="admin-dashboard-wrapper" id="adminDashboardWrapper" style="display: none;">
+    
+    <!-- Admin Top Nav -->
+    <header class="admin-topbar">
+      <div class="container nav-wrapper">
+        <div class="brand-logo">
+          <img src="logo.jpg" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/adithyaoshada7-spec/perfume-mrtk/main/logo.jpg';" alt="Piyora" class="brand-logo-img">
+          <div class="brand-text-wrap">
+            <span class="brand-title">PIYORA</span>
+            <span class="brand-subtitle">Store Admin Dashboard</span>
+          </div>
+        </div>
+
+        <div class="admin-nav-actions">
+          <a href="index.html" target="_blank" class="admin-btn-secondary">
+            <span>👁️ View Storefront</span>
+          </a>
+          <button type="button" class="admin-btn-logout" onclick="logoutAdmin()">
+            <span>🔒 Logout</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container admin-main-content">
+      
+      <!-- Cloud Database Connection Banner -->
+      <div class="db-status-banner" id="dbStatusBanner">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Quick Stats Strip -->
+      <div class="admin-stats-grid">
+        <div class="stat-card">
+          <div class="stat-num" id="statTotal">--</div>
+          <div class="stat-label">Total Perfumes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statAuthentic">--</div>
+          <div class="stat-label">Authentic Decants</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statInspired">--</div>
+          <div class="stat-label">Inspired Minis</div>
+        </div>
+        <div class="stat-card stat-alert">
+          <div class="stat-num" id="statOutStock">--</div>
+          <div class="stat-label">Out of Stock</div>
+        </div>
+      </div>
+
+      <!-- Settings Accordion Section -->
+      <div class="admin-panel-card">
+        <div class="panel-card-header" onclick="toggleSettingsPanel()">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.1rem;">⚙️</span>
+            <h3 style="font-size:1rem; font-weight:600; color:#fff;">Store & Database Configuration</h3>
+          </div>
+          <span id="settingsToggleIcon" style="color:var(--accent-gold); font-size:1.1rem;">▼</span>
+        </div>
+
+        <div class="panel-card-body" id="settingsPanelBody" style="display: none;">
+          <form id="settingsForm" onsubmit="saveStoreSettings(event)">
+            <div class="settings-form-grid">
+              <div class="form-group">
+                <label>WhatsApp Order Phone Number:</label>
+                <input type="text" id="settingWhatsapp" class="admin-input" placeholder="e.g. 94786623081" required>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Country code without + (e.g. 94786623081)</small>
+              </div>
+
+              <div class="form-group">
+                <label>Admin 4-Digit Access PIN:</label>
+                <input type="password" id="settingPin" class="admin-input" maxlength="8" placeholder="e.g. 7120" required>
+                <small style="color:var(--text-muted); font-size:0.7rem;">PIN to unlock this portal</small>
+              </div>
+
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label>Supabase Project URL:</label>
+                <input type="url" id="settingSupabaseUrl" class="admin-input" placeholder="https://xyzcompany.supabase.co">
+              </div>
+
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label>Supabase Anon Public API Key:</label>
+                <input type="text" id="settingSupabaseKey" class="admin-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                <small style="color:var(--accent-gold-light); font-size:0.72rem;">Found in Supabase Dashboard → Settings → API → anon public key</small>
+              </div>
+            </div>
+
+            <div style="margin-top:1.25rem; display:flex; gap:0.75rem; justify-content:flex-end;">
+              <button type="submit" class="admin-btn-primary">
+                <span>💾 Save Settings</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Products Management Section -->
+      <div class="admin-panel-card">
+        <div class="panel-card-header" style="cursor:default; display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.1rem;">🧴</span>
+            <h3 style="font-size:1.1rem; font-weight:600; color:#fff;">Perfume Catalog & Live Pricing</h3>
+          </div>
+
+          <div style="display:flex; gap:0.5rem;">
+            <button type="button" class="admin-btn-primary" onclick="openAddProductModal()">
+              <span>➕ Add New Perfume</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-glass); display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;">
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            <button type="button" class="admin-filter-pill active" onclick="setAdminFilter('all', this)">All</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminFilter('authentic', this)">Authentic Decants</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminFilter('inspired', this)">Inspired 15ml</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminFilter('out_of_stock', this)">Out of Stock Only</button>
+          </div>
+
+          <div style="min-width: 240px; flex: 1; max-width: 320px;">
+            <input type="text" id="adminSearchInput" class="admin-input" placeholder="Search perfume..." oninput="handleAdminSearch(this.value)">
+          </div>
+        </div>
+
+        <!-- Products List -->
+        <div class="admin-product-list" id="adminProductList">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ========================================================
+       3. ADD NEW PERFUME MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="addProductModal">
+    <div class="modal-window" style="max-width: 650px; padding: 1.75rem;">
+      <button class="modal-close" onclick="closeAddProductModal()">✕</button>
+      <h3 style="font-family:var(--font-serif); font-size:1.4rem; color:#fff; margin-bottom:1.25rem;">
+        Add New Perfume to Catalog
+      </h3>
+
+      <form id="newPerfumeForm" onsubmit="handleCreateProduct(event)">
+        <div class="settings-form-grid">
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Perfume Name *</label>
+            <input type="text" id="newProdName" class="admin-input" placeholder="e.g. Baccarat Rouge 540 Extrait" required>
+          </div>
+
+          <div class="form-group">
+            <label>Brand / Inspiration *</label>
+            <input type="text" id="newProdBrand" class="admin-input" placeholder="e.g. Maison Francis Kurkdjian" required>
+          </div>
+
+          <div class="form-group">
+            <label>Category *</label>
+            <select id="newProdCategory" class="admin-input" onchange="toggleCategoryPriceInputs()" required>
+              <option value="authentic">Authentic Decant (5ml / 10ml)</option>
+              <option value="inspired" selected>Inspired 15ml (Single, 3-Pack, 5-Pack)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Target Audience *</label>
+            <select id="newProdGender" class="admin-input" required>
+              <option value="men">For Men</option>
+              <option value="women">For Women</option>
+              <option value="unisex" selected>Unisex</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Longevity Rating</label>
+            <input type="text" id="newProdLongevity" class="admin-input" placeholder="e.g. 14h+ Beast Mode" value="14h+ Lasting">
+          </div>
+
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Image URL *</label>
+            <input type="url" id="newProdImage" class="admin-input" placeholder="https://images.unsplash.com/..." required>
+          </div>
+
+          <!-- Dynamic Price Fields -->
+          <div id="priceFieldsContainer" style="grid-column: 1 / -1; background:rgba(255,255,255,0.03); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+            <!-- Populated based on category -->
+          </div>
+
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Fragrance Notes (Top, Heart, Base):</label>
+            <input type="text" id="newProdNotes" class="admin-input" placeholder="e.g. Bergamot, Pineapple, Birch, Ambergris">
+          </div>
+        </div>
+
+        <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="admin-btn-secondary" onclick="closeAddProductModal()">Cancel</button>
+          <button type="submit" class="admin-btn-primary"><span>Save & Add Perfume</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // ========================================================
+    // ADMIN PORTAL CLIENT-SIDE LOGIC
+    // ========================================================
+    let enteredPin = "";
+    let adminFilterCategory = "all";
+    let adminSearchTerm = "";
+
+    // 1. PIN Keypad logic
+    function pressPinDigit(digit) {
+      if (enteredPin.length < 4) {
+        enteredPin += digit;
+        updatePinDots();
+        if (enteredPin.length === 4) {
+          setTimeout(submitPin, 150);
+        }
+      }
+    }
+
+    function clearPin() {
+      enteredPin = "";
+      updatePinDots();
+      document.getElementById("pinErrorMsg").textContent = "";
+    }
+
+    function updatePinDots() {
+      for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        if (i < enteredPin.length) dot.classList.add("filled");
+        else dot.classList.remove("filled");
+      }
+    }
+
+    function submitPin() {
+      const storedPin = getAdminPin();
+      if (enteredPin === storedPin) {
+        sessionStorage.setItem("piyora_admin_authed", "true");
+        unlockDashboard();
+      } else {
+        const errorEl = document.getElementById("pinErrorMsg");
+        errorEl.textContent = "වැරදි PIN අංකයක්! කරුණාකර නැවත උත්සාහ කරන්න.";
+        const card = document.querySelector(".pin-card");
+        card.classList.add("shake");
+        setTimeout(() => card.classList.remove("shake"), 500);
+        clearPin();
+      }
+    }
+
+    // Physical keyboard support for PIN
+    document.addEventListener("keydown", (e) => {
+      const overlay = document.getElementById("pinGateOverlay");
+      if (overlay && overlay.style.display !== "none") {
+        if (/^[0-9]$/.test(e.key)) {
+          pressPinDigit(e.key);
+        } else if (e.key === "Backspace" || e.key === "Delete") {
+          enteredPin = enteredPin.slice(0, -1);
+          updatePinDots();
+        } else if (e.key === "Enter") {
+          submitPin();
+        }
+      }
+    });
+
+    function unlockDashboard() {
+      document.getElementById("pinGateOverlay").style.display = "none";
+      document.getElementById("adminDashboardWrapper").style.display = "block";
+      initAdminDashboard();
+    }
+
+    function logoutAdmin() {
+      sessionStorage.removeItem("piyora_admin_authed");
+      enteredPin = "";
+      updatePinDots();
+      document.getElementById("adminDashboardWrapper").style.display = "none";
+      document.getElementById("pinGateOverlay").style.display = "flex";
+    }
+
+    // 2. Check existing session on load
+    document.addEventListener("DOMContentLoaded", () => {
+      if (sessionStorage.getItem("piyora_admin_authed") === "true") {
+        unlockDashboard();
+      } else {
+        document.getElementById("pinGateOverlay").style.display = "flex";
+      }
+    });
+
+    // 3. Admin Dashboard Render & Actions
+    async function initAdminDashboard() {
+      await loadCatalogData();
+      renderAdminProducts();
+      renderAdminStats();
+      populateSettingsForm();
+      renderDbStatusBanner();
+    }
+
+    function renderDbStatusBanner() {
+      const banner = document.getElementById("dbStatusBanner");
+      const credentials = getSupabaseCredentials();
+      if (credentials.url && credentials.key) {
+        banner.innerHTML = `
+          <div class="db-banner-content db-connected">
+            <span class="db-status-dot green"></span>
+            <div>
+              <strong>Live Supabase Cloud Connected:</strong> Perfumes and prices sync instantly with your PostgreSQL database.
+            </div>
+          </div>
+        `;
+      } else {
+        banner.innerHTML = `
+          <div class="db-banner-content db-fallback">
+            <span class="db-status-dot yellow"></span>
+            <div>
+              <strong>Local Persistence Mode Active:</strong> Changes are saved locally. To connect to Cloud PostgreSQL, paste your free Supabase URL & Key in <em>Store & Database Configuration</em> below.
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function renderAdminStats() {
+      const catalog = getActiveCatalog();
+      document.getElementById("statTotal").textContent = catalog.length;
+      document.getElementById("statAuthentic").textContent = catalog.filter(p => p.category === "authentic").length;
+      document.getElementById("statInspired").textContent = catalog.filter(p => p.category === "inspired").length;
+      document.getElementById("statOutStock").textContent = catalog.filter(p => p.in_stock === false).length;
+    }
+
+    function setAdminFilter(category, btn) {
+      adminFilterCategory = category;
+      document.querySelectorAll(".admin-filter-pill").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      renderAdminProducts();
+    }
+
+    function handleAdminSearch(term) {
+      adminSearchTerm = term.toLowerCase().trim();
+      renderAdminProducts();
+    }
+
+    function renderAdminProducts() {
+      const container = document.getElementById("adminProductList");
+      let items = getActiveCatalog();
+
+      if (adminFilterCategory === "authentic") {
+        items = items.filter(p => p.category === "authentic");
+      } else if (adminFilterCategory === "inspired") {
+        items = items.filter(p => p.category === "inspired");
+      } else if (adminFilterCategory === "out_of_stock") {
+        items = items.filter(p => p.in_stock === false);
+      }
+
+      if (adminSearchTerm) {
+        items = items.filter(p => 
+          p.name.toLowerCase().includes(adminSearchTerm) ||
+          p.brand.toLowerCase().includes(adminSearchTerm)
+        );
+      }
+
+      if (items.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-muted);">No matching perfumes found.</div>`;
+        return;
+      }
+
+      container.innerHTML = items.map(p => {
+        const isAuthentic = p.category === "authentic";
+        const isInStock = p.in_stock !== false;
+
+        let priceInputsHtml = "";
+        if (isAuthentic) {
+          const p5 = p.sizes["5ml Decant"]?.price || 0;
+          const p10 = p.sizes["10ml Decant"]?.price || 0;
+          priceInputsHtml = `
+            <div class="inline-price-group">
+              <label>5ml (Rs.):</label>
+              <input type="number" class="admin-price-input" id="price-5ml-${p.id}" value="${p5}">
+            </div>
+            <div class="inline-price-group">
+              <label>10ml (Rs.):</label>
+              <input type="number" class="admin-price-input" id="price-10ml-${p.id}" value="${p10}">
+            </div>
+          `;
+        } else {
+          const pSingle = p.sizes["Single 15ml"]?.price || 0;
+          const p3 = p.sizes["3-Pack (3x15ml)"]?.price || 0;
+          const p5 = p.sizes["5-Pack (5x15ml)"]?.price || 0;
+          priceInputsHtml = `
+            <div class="inline-price-group">
+              <label>15ml (Rs.):</label>
+              <input type="number" class="admin-price-input" id="price-single-${p.id}" value="${pSingle}">
+            </div>
+            <div class="inline-price-group">
+              <label>3-Pack (Rs.):</label>
+              <input type="number" class="admin-price-input" id="price-3pack-${p.id}" value="${p3}">
+            </div>
+            <div class="inline-price-group">
+              <label>5-Pack (Rs.):</label>
+              <input type="number" class="admin-price-input" id="price-5pack-${p.id}" value="${p5}">
+            </div>
+          `;
+        }
+
+        return `
+          <div class="admin-product-row ${!isInStock ? 'out-of-stock-row' : ''}">
+            <div class="admin-prod-thumb-col">
+              <img src="${p.image}" alt="${p.name}" class="admin-prod-thumb">
+              <span class="type-badge ${isAuthentic ? 'badge-authentic' : 'badge-inspired'}">${p.category}</span>
+            </div>
+
+            <div class="admin-prod-info-col">
+              <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; text-transform:uppercase;">${p.brand}</div>
+              <h4 style="font-size:1.05rem; font-weight:600; color:#fff; margin:0.15rem 0;">${p.name}</h4>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${p.longevity} • ${p.gender}</div>
+            </div>
+
+            <div class="admin-prod-pricing-col">
+              ${priceInputsHtml}
+              <button type="button" class="admin-btn-save-sm" onclick="saveInlinePrice('${p.id}')">💾 Save</button>
+            </div>
+
+            <div class="admin-prod-actions-col">
+              <label class="stock-switch" title="Toggle Stock Status">
+                <input type="checkbox" ${isInStock ? 'checked' : ''} onchange="toggleProductStock('${p.id}', this.checked)">
+                <span class="stock-slider"></span>
+              </label>
+              <span class="stock-status-text ${isInStock ? 'text-in-stock' : 'text-out-stock'}">
+                ${isInStock ? 'In Stock' : 'Out of Stock'}
+              </span>
+
+              <button type="button" class="btn-delete-prod" title="Delete Perfume" onclick="confirmDeleteProduct('${p.id}')">🗑️</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 4. Save Inline Prices
+    async function saveInlinePrice(productId) {
+      const product = getActiveCatalog().find(p => p.id === productId);
+      if (!product) return;
+
+      if (product.category === "authentic") {
+        const val5 = parseInt(document.getElementById(`price-5ml-${productId}`).value) || 0;
+        const val10 = parseInt(document.getElementById(`price-10ml-${productId}`).value) || 0;
+        product.sizes["5ml Decant"].price = val5;
+        product.sizes["5ml Decant"].label = `Rs. ${val5.toLocaleString()}`;
+        product.sizes["10ml Decant"].price = val10;
+        product.sizes["10ml Decant"].label = `Rs. ${val10.toLocaleString()}`;
+      } else {
+        const valSingle = parseInt(document.getElementById(`price-single-${productId}`).value) || 0;
+        const val3 = parseInt(document.getElementById(`price-3pack-${productId}`).value) || 0;
+        const val5 = parseInt(document.getElementById(`price-5pack-${productId}`).value) || 0;
+        product.sizes["Single 15ml"].price = valSingle;
+        product.sizes["Single 15ml"].label = `Rs. ${valSingle.toLocaleString()}`;
+        product.sizes["3-Pack (3x15ml)"].price = val3;
+        product.sizes["3-Pack (3x15ml)"].label = `Rs. ${val3.toLocaleString()}`;
+        product.sizes["5-Pack (5x15ml)"].price = val5;
+        product.sizes["5-Pack (5x15ml)"].label = `Rs. ${val5.toLocaleString()}`;
+      }
+
+      await syncProductUpdate(product);
+      alert(`මිල සාර්ථකව යාවත්කාලීන විය! (Price updated for ${product.name})`);
+      renderAdminProducts();
+      renderAdminStats();
+    }
+
+    // 5. Stock Toggle
+    async function toggleProductStock(productId, inStock) {
+      const product = getActiveCatalog().find(p => p.id === productId);
+      if (!product) return;
+      product.in_stock = inStock;
+      await syncProductUpdate(product);
+      renderAdminProducts();
+      renderAdminStats();
+    }
+
+    // 6. Delete Product
+    async function confirmDeleteProduct(productId) {
+      const product = getActiveCatalog().find(p => p.id === productId);
+      if (!product) return;
+      if (confirm(`ඔබට මෙම Perfume එක (${product.name}) Catalog එකෙන් ඉවත් කිරීමට අවශ්‍යද?`)) {
+        await syncProductDelete(productId);
+        renderAdminProducts();
+        renderAdminStats();
+      }
+    }
+
+    // 7. Add Product Modal logic
+    function openAddProductModal() {
+      toggleCategoryPriceInputs();
+      document.getElementById("addProductModal").classList.add("open");
+    }
+
+    function closeAddProductModal() {
+      document.getElementById("addProductModal").classList.remove("open");
+      document.getElementById("newPerfumeForm").reset();
+    }
+
+    function toggleCategoryPriceInputs() {
+      const cat = document.getElementById("newProdCategory").value;
+      const container = document.getElementById("priceFieldsContainer");
+      if (cat === "authentic") {
+        container.innerHTML = `
+          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Authentic Decants Pricing:</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">5ml Decant Price (Rs.) *</label>
+              <input type="number" id="newPrice5" class="admin-input" placeholder="3200" required>
+            </div>
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">10ml Decant Price (Rs.) *</label>
+              <input type="number" id="newPrice10" class="admin-input" placeholder="5800" required>
+            </div>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Inspired 15ml Packages Pricing:</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">Single 15ml (Rs.) *</label>
+              <input type="number" id="newPriceSingle" class="admin-input" placeholder="1250" required>
+            </div>
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">3-Pack (Rs.) *</label>
+              <input type="number" id="newPrice3" class="admin-input" placeholder="3450" required>
+            </div>
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">5-Pack (Rs.) *</label>
+              <input type="number" id="newPrice5Pack" class="admin-input" placeholder="5250" required>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    async function handleCreateProduct(e) {
+      e.preventDefault();
+      const name = document.getElementById("newProdName").value.trim();
+      const brand = document.getElementById("newProdBrand").value.trim();
+      const category = document.getElementById("newProdCategory").value;
+      const gender = document.getElementById("newProdGender").value;
+      const longevity = document.getElementById("newProdLongevity").value.trim() || "14h+ Lasting";
+      const image = document.getElementById("newProdImage").value.trim();
+      const notes = document.getElementById("newProdNotes").value.trim() || "Fragrant accords";
+
+      const id = "prod-" + Date.now();
+      let sizes = {};
+
+      if (category === "authentic") {
+        const p5 = parseInt(document.getElementById("newPrice5").value) || 0;
+        const p10 = parseInt(document.getElementById("newPrice10").value) || 0;
+        sizes = {
+          "5ml Decant": { price: p5, label: `Rs. ${p5.toLocaleString()}`, sprayCount: "~70 Sprays" },
+          "10ml Decant": { price: p10, label: `Rs. ${p10.toLocaleString()}`, sprayCount: "~140 Sprays" }
+        };
+      } else {
+        const pSingle = parseInt(document.getElementById("newPriceSingle").value) || 0;
+        const p3 = parseInt(document.getElementById("newPrice3").value) || 0;
+        const p5 = parseInt(document.getElementById("newPrice5Pack").value) || 0;
+        sizes = {
+          "Single 15ml": { price: pSingle, label: `Rs. ${pSingle.toLocaleString()}`, freeDelivery: false, desc: "1x 15ml Bottle" },
+          "3-Pack (3x15ml)": { price: p3, label: `Rs. ${p3.toLocaleString()}`, freeDelivery: true, desc: "3x 15ml Set" },
+          "5-Pack (5x15ml)": { price: p5, label: `Rs. ${p5.toLocaleString()}`, freeDelivery: true, desc: "5x 15ml Full Set" }
+        };
+      }
+
+      const newProd = {
+        id,
+        name,
+        brand,
+        category,
+        gender,
+        image,
+        badge: category === "authentic" ? "100% Authentic Decant" : "Inspired • 15ml Luxury",
+        accords: ["Luxury Scent", "Refined Aroma"],
+        topNotes: notes,
+        heartNotes: notes,
+        baseNotes: notes,
+        longevity,
+        description: `${name} by ${brand}. Available in decants/luxury sprays.`,
+        sizes,
+        defaultSize: category === "authentic" ? "10ml Decant" : "3-Pack (3x15ml)",
+        in_stock: true
+      };
+
+      await syncProductInsert(newProd);
+      closeAddProductModal();
+      alert("නව සුවඳ විලවුන් වර්ගය සාර්ථකව ඇතුළත් කරන ලදී! (Perfume added successfully)");
+      renderAdminProducts();
+      renderAdminStats();
+    }
+
+    // 8. Settings Panel
+    function toggleSettingsPanel() {
+      const body = document.getElementById("settingsPanelBody");
+      const icon = document.getElementById("settingsToggleIcon");
+      if (body.style.display === "none") {
+        body.style.display = "block";
+        icon.textContent = "▲";
+      } else {
+        body.style.display = "none";
+        icon.textContent = "▼";
+      }
+    }
+
+    function populateSettingsForm() {
+      document.getElementById("settingWhatsapp").value = getWhatsAppNumber();
+      document.getElementById("settingPin").value = getAdminPin();
+      const creds = getSupabaseCredentials();
+      document.getElementById("settingSupabaseUrl").value = creds.url || "";
+      document.getElementById("settingSupabaseKey").value = creds.key || "";
+    }
+
+    async function saveStoreSettings(e) {
+      e.preventDefault();
+      const whatsapp = document.getElementById("settingWhatsapp").value.trim().replace(/[^0-9]/g, '');
+      const pin = document.getElementById("settingPin").value.trim();
+      const supaUrl = document.getElementById("settingSupabaseUrl").value.trim();
+      const supaKey = document.getElementById("settingSupabaseKey").value.trim();
+
+      saveStoreConfig({
+        whatsapp_number: whatsapp,
+        admin_pin: pin,
+        supabase_url: supaUrl,
+        supabase_key: supaKey
+      });
+
+      alert("Settings සාර්ථකව Save විය! (Settings saved successfully)");
+      renderDbStatusBanner();
+    }
+  </script>
+</body>
+</html>
