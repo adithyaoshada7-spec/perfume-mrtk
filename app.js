@@ -225,21 +225,36 @@ const cardStates = {};
 // 1. CONFIGURATION & DATABASE LAYER (SUPABASE + LOCAL)
 // ========================================================
 
+// Default Supabase Cloud Credentials for Piyora
+const DEFAULT_SUPABASE_URL = "https://ikwtymxlygxeucizsewn.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_CHawQcBT4YBD-iAAD8X_wQ_TcRCVpwQ";
+
+function sanitizeSupabaseUrl(url) {
+  if (!url) return "";
+  return url.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+}
+
 function getStoreConfig() {
   try {
     const raw = localStorage.getItem("piyora_settings");
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (!parsed.supabase_url) parsed.supabase_url = DEFAULT_SUPABASE_URL;
+      if (!parsed.supabase_key) parsed.supabase_key = DEFAULT_SUPABASE_KEY;
+      return parsed;
+    }
   } catch (e) {}
   return {
     whatsapp_number: "94786623081",
     admin_pin: "7120",
-    supabase_url: "",
-    supabase_key: ""
+    supabase_url: DEFAULT_SUPABASE_URL,
+    supabase_key: DEFAULT_SUPABASE_KEY
   };
 }
 
 function saveStoreConfig(cfg) {
   const current = getStoreConfig();
+  if (cfg.supabase_url) cfg.supabase_url = sanitizeSupabaseUrl(cfg.supabase_url);
   const updated = { ...current, ...cfg };
   localStorage.setItem("piyora_settings", JSON.stringify(updated));
 }
@@ -254,7 +269,10 @@ function getAdminPin() {
 
 function getSupabaseCredentials() {
   const cfg = getStoreConfig();
-  return { url: cfg.supabase_url || "", key: cfg.supabase_key || "" };
+  return { 
+    url: sanitizeSupabaseUrl(cfg.supabase_url) || DEFAULT_SUPABASE_URL, 
+    key: cfg.supabase_key || DEFAULT_SUPABASE_KEY 
+  };
 }
 
 function getSupabaseClient() {
