@@ -370,7 +370,16 @@ async function syncProductUpdate(product) {
         .update({
           name: product.name,
           brand: product.brand,
+          category: product.category,
+          gender: product.gender,
+          image: product.image,
+          badge: product.badge,
           sizes: product.sizes,
+          top_notes: product.topNotes,
+          heart_notes: product.heartNotes,
+          base_notes: product.baseNotes,
+          longevity: product.longevity,
+          description: product.description,
           in_stock: product.in_stock !== false
         })
         .eq('id', product.id);

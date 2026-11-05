@@ -240,8 +240,26 @@
           </div>
 
           <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Image URL *</label>
-            <input type="url" id="newProdImage" class="admin-input" placeholder="https://images.unsplash.com/..." required>
+            <label>Perfume Image * (Upload from Device or Paste URL)</label>
+            <div class="image-upload-wrapper">
+              <div class="image-upload-controls">
+                <div class="image-preview-box">
+                  <img id="newProdImagePreview" src="logo.jpg" alt="Preview" class="image-preview-img" onerror="this.src='logo.jpg'">
+                </div>
+                <div>
+                  <label class="image-upload-btn-label">
+                    📁 <span>Choose File / Take Photo</span>
+                    <input type="file" id="newProdFileInput" class="image-upload-input-hidden" accept="image/*" onchange="handleImageFileSelect(this, 'newProdImage', 'newProdImagePreview')">
+                  </label>
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.35rem;">
+                    Upload direct from Phone/PC (Auto-compressed & optimized)
+                  </div>
+                </div>
+              </div>
+              <div>
+                <input type="text" id="newProdImage" class="admin-input" placeholder="Or paste image URL (e.g. https://...)" oninput="handleImageUrlInput(this.value, 'newProdImagePreview')" required>
+              </div>
+            </div>
           </div>
 
           <!-- Dynamic Price Fields -->
@@ -258,6 +276,92 @@
         <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem;">
           <button type="button" class="admin-btn-secondary" onclick="closeAddProductModal()">Cancel</button>
           <button type="submit" class="admin-btn-primary"><span>Save & Add Perfume</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       4. EDIT PERFUME MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="editProductModal">
+    <div class="modal-window" style="max-width: 650px; padding: 1.75rem;">
+      <button class="modal-close" onclick="closeEditProductModal()">✕</button>
+      <h3 style="font-family:var(--font-serif); font-size:1.4rem; color:#fff; margin-bottom:1.25rem;">
+        Edit Perfume Details & Scent
+      </h3>
+
+      <form id="editPerfumeForm" onsubmit="handleUpdateProduct(event)">
+        <input type="hidden" id="editProdId">
+
+        <div class="settings-form-grid">
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Perfume Name *</label>
+            <input type="text" id="editProdName" class="admin-input" placeholder="e.g. Baccarat Rouge 540 Extrait" required>
+          </div>
+
+          <div class="form-group">
+            <label>Brand / Inspiration *</label>
+            <input type="text" id="editProdBrand" class="admin-input" placeholder="e.g. Maison Francis Kurkdjian" required>
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" id="editProdCategoryDisplay" class="admin-input" readonly style="opacity:0.75; cursor:not-allowed;">
+            <input type="hidden" id="editProdCategory">
+          </div>
+
+          <div class="form-group">
+            <label>Target Audience *</label>
+            <select id="editProdGender" class="admin-input" required>
+              <option value="men">For Men</option>
+              <option value="women">For Women</option>
+              <option value="unisex">Unisex</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Longevity Rating</label>
+            <input type="text" id="editProdLongevity" class="admin-input" placeholder="e.g. 14h+ Beast Mode">
+          </div>
+
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Perfume Image * (Upload New or Update URL)</label>
+            <div class="image-upload-wrapper">
+              <div class="image-upload-controls">
+                <div class="image-preview-box">
+                  <img id="editProdImagePreview" src="logo.jpg" alt="Preview" class="image-preview-img" onerror="this.src='logo.jpg'">
+                </div>
+                <div>
+                  <label class="image-upload-btn-label">
+                    📁 <span>Choose File / Take Photo</span>
+                    <input type="file" id="editProdFileInput" class="image-upload-input-hidden" accept="image/*" onchange="handleImageFileSelect(this, 'editProdImage', 'editProdImagePreview')">
+                  </label>
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.35rem;">
+                    Upload direct from Phone/PC (Auto-compressed & optimized)
+                  </div>
+                </div>
+              </div>
+              <div>
+                <input type="text" id="editProdImage" class="admin-input" placeholder="Or paste image URL" oninput="handleImageUrlInput(this.value, 'editProdImagePreview')" required>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Price Fields for Edit -->
+          <div id="editPriceFieldsContainer" style="grid-column: 1 / -1; background:rgba(255,255,255,0.03); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+            <!-- Populated dynamically -->
+          </div>
+
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Fragrance Notes (Top, Heart, Base):</label>
+            <input type="text" id="editProdNotes" class="admin-input" placeholder="e.g. Bergamot, Pineapple, Birch, Ambergris">
+          </div>
+        </div>
+
+        <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="admin-btn-secondary" onclick="closeEditProductModal()">Cancel</button>
+          <button type="submit" class="admin-btn-primary"><span>Save Changes</span></button>
         </div>
       </form>
     </div>
@@ -484,6 +588,10 @@
             </div>
 
             <div class="admin-prod-actions-col">
+              <button type="button" class="btn-edit-prod" title="Edit Perfume Name, Image & Details" onclick="openEditProductModal('${p.id}')">
+                ✏️ Edit
+              </button>
+
               <label class="stock-switch" title="Toggle Stock Status">
                 <input type="checkbox" ${isInStock ? 'checked' : ''} onchange="toggleProductStock('${p.id}', this.checked)">
                 <span class="stock-slider"></span>
@@ -559,6 +667,8 @@
     function closeAddProductModal() {
       document.getElementById("addProductModal").classList.remove("open");
       document.getElementById("newPerfumeForm").reset();
+      const preview = document.getElementById("newProdImagePreview");
+      if (preview) preview.src = "logo.jpg";
     }
 
     function toggleCategoryPriceInputs() {
@@ -656,7 +766,174 @@
       renderAdminStats();
     }
 
-    // 8. Settings Panel
+    // ========================================================
+    // 8. IMAGE PROCESSING & DIRECT UPLOAD (Client Compressed)
+    // ========================================================
+    function processImageFile(file, maxWidth = 800, quality = 0.82) {
+      return new Promise((resolve, reject) => {
+        if (!file || !file.type.startsWith('image/')) {
+          reject(new Error("Invalid image file"));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleImageFileSelect(input, targetInputId, targetPreviewId) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      try {
+        const compressedBase64 = await processImageFile(file, 800, 0.82);
+        document.getElementById(targetInputId).value = compressedBase64;
+        const preview = document.getElementById(targetPreviewId);
+        if (preview) preview.src = compressedBase64;
+      } catch (err) {
+        console.error("Error processing image:", err);
+        alert("රූපය process කිරීමේදී දෝෂයක් ඇති විය. කරුණාකර නැවත උත්සාහ කරන්න.");
+      }
+    }
+
+    function handleImageUrlInput(url, targetPreviewId) {
+      const preview = document.getElementById(targetPreviewId);
+      if (preview && url && url.trim().length > 5) {
+        preview.src = url.trim();
+      }
+    }
+
+    // ========================================================
+    // 9. EDIT PERFUME MODAL LOGIC (Name, Brand, Notes, Image, Prices)
+    // ========================================================
+    function openEditProductModal(productId) {
+      const product = getActiveCatalog().find(p => p.id === productId);
+      if (!product) return;
+
+      document.getElementById("editProdId").value = product.id;
+      document.getElementById("editProdName").value = product.name;
+      document.getElementById("editProdBrand").value = product.brand;
+      document.getElementById("editProdCategory").value = product.category;
+      document.getElementById("editProdCategoryDisplay").value = product.category === "authentic" ? "Authentic Decant" : "Inspired 15ml";
+      document.getElementById("editProdGender").value = product.gender || "unisex";
+      document.getElementById("editProdLongevity").value = product.longevity || "14h+ Lasting";
+      document.getElementById("editProdImage").value = product.image;
+      document.getElementById("editProdImagePreview").src = product.image;
+      document.getElementById("editProdNotes").value = product.topNotes || (product.accords ? product.accords.join(', ') : "");
+
+      const priceContainer = document.getElementById("editPriceFieldsContainer");
+      if (product.category === "authentic") {
+        const p5 = product.sizes?.["5ml Decant"]?.price || 0;
+        const p10 = product.sizes?.["10ml Decant"]?.price || 0;
+        priceContainer.innerHTML = `
+          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Authentic Decants Pricing:</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">5ml Decant Price (Rs.) *</label>
+              <input type="number" id="editPrice5" class="admin-input" value="${p5}" required>
+            </div>
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">10ml Decant Price (Rs.) *</label>
+              <input type="number" id="editPrice10" class="admin-input" value="${p10}" required>
+            </div>
+          </div>
+        `;
+      } else {
+        const pSingle = product.sizes?.["Single 15ml"]?.price || 0;
+        const p3 = product.sizes?.["3-Pack (3x15ml)"]?.price || 0;
+        const p5 = product.sizes?.["5-Pack (5x15ml)"]?.price || 0;
+        priceContainer.innerHTML = `
+          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Inspired 15ml Packages Pricing:</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">Single 15ml (Rs.) *</label>
+              <input type="number" id="editPriceSingle" class="admin-input" value="${pSingle}" required>
+            </div>
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">3-Pack (Rs.) *</label>
+              <input type="number" id="editPrice3" class="admin-input" value="${p3}" required>
+            </div>
+            <div>
+              <label style="font-size:0.7rem; color:var(--text-muted);">5-Pack (Rs.) *</label>
+              <input type="number" id="editPrice5Pack" class="admin-input" value="${p5}" required>
+            </div>
+          </div>
+        `;
+      }
+
+      document.getElementById("editProductModal").classList.add("open");
+    }
+
+    function closeEditProductModal() {
+      document.getElementById("editProductModal").classList.remove("open");
+    }
+
+    async function handleUpdateProduct(e) {
+      e.preventDefault();
+      const id = document.getElementById("editProdId").value;
+      const product = getActiveCatalog().find(p => p.id === id);
+      if (!product) return;
+
+      const name = document.getElementById("editProdName").value.trim();
+      const brand = document.getElementById("editProdBrand").value.trim();
+      const gender = document.getElementById("editProdGender").value;
+      const longevity = document.getElementById("editProdLongevity").value.trim() || "14h+ Lasting";
+      const image = document.getElementById("editProdImage").value.trim();
+      const notes = document.getElementById("editProdNotes").value.trim() || "Fragrant accords";
+
+      product.name = name;
+      product.brand = brand;
+      product.gender = gender;
+      product.longevity = longevity;
+      product.image = image;
+      product.topNotes = notes;
+      product.heartNotes = notes;
+      product.baseNotes = notes;
+      product.description = `${name} by ${brand}. Available in decants/luxury sprays.`;
+
+      if (product.category === "authentic") {
+        const p5 = parseInt(document.getElementById("editPrice5").value) || 0;
+        const p10 = parseInt(document.getElementById("editPrice10").value) || 0;
+        if (!product.sizes) product.sizes = {};
+        product.sizes["5ml Decant"] = { price: p5, label: `Rs. ${p5.toLocaleString()}`, sprayCount: "~70 Sprays" };
+        product.sizes["10ml Decant"] = { price: p10, label: `Rs. ${p10.toLocaleString()}`, sprayCount: "~140 Sprays" };
+      } else {
+        const pSingle = parseInt(document.getElementById("editPriceSingle").value) || 0;
+        const p3 = parseInt(document.getElementById("editPrice3").value) || 0;
+        const p5 = parseInt(document.getElementById("editPrice5Pack").value) || 0;
+        if (!product.sizes) product.sizes = {};
+        product.sizes["Single 15ml"] = { price: pSingle, label: `Rs. ${pSingle.toLocaleString()}`, freeDelivery: false, desc: "1x 15ml Bottle" };
+        product.sizes["3-Pack (3x15ml)"] = { price: p3, label: `Rs. ${p3.toLocaleString()}`, freeDelivery: true, desc: "3x 15ml Set" };
+        product.sizes["5-Pack (5x15ml)"] = { price: p5, label: `Rs. ${p5.toLocaleString()}`, freeDelivery: true, desc: "5x 15ml Full Set" };
+      }
+
+      await syncProductUpdate(product);
+      closeEditProductModal();
+      alert(`සුවඳ විලවුන් විස්තර සාර්ථකව යාවත්කාලීන විය! (${product.name} updated successfully)`);
+      renderAdminProducts();
+      renderAdminStats();
+    }
+
+    // 10. Settings Panel
     function toggleSettingsPanel() {
       const body = document.getElementById("settingsPanelBody");
       const icon = document.getElementById("settingsToggleIcon");
