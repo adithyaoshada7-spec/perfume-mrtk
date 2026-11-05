@@ -93,21 +93,72 @@
 
       <!-- Quick Stats Strip -->
       <div class="admin-stats-grid">
-        <div class="stat-card">
+        <div class="stat-card stat-alert" style="cursor:pointer;" onclick="switchAdminTab('orders'); setAdminOrderFilter('pending');" title="View Pending Orders">
+          <div class="stat-num" id="statNewOrders" style="color:var(--accent-gold);">0</div>
+          <div class="stat-label">Pending Orders 🔔</div>
+        </div>
+        <div class="stat-card" style="cursor:pointer;" onclick="switchAdminTab('orders'); setAdminOrderFilter('all');" title="View All Orders">
+          <div class="stat-num" id="statTotalOrders">0</div>
+          <div class="stat-label">Total Orders 📦</div>
+        </div>
+        <div class="stat-card" style="cursor:pointer;" onclick="switchAdminTab('catalog');" title="View Catalog">
           <div class="stat-num" id="statTotal">--</div>
           <div class="stat-label">Total Perfumes</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-num" id="statAuthentic">--</div>
-          <div class="stat-label">Authentic Decants</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num" id="statInspired">--</div>
-          <div class="stat-label">Inspired Minis</div>
-        </div>
-        <div class="stat-card stat-alert">
+        <div class="stat-card stat-alert" style="cursor:pointer;" onclick="switchAdminTab('catalog'); setAdminFilter('out_of_stock', document.querySelector('.admin-filter-pill:last-child'));">
           <div class="stat-num" id="statOutStock">--</div>
           <div class="stat-label">Out of Stock</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Orders vs Catalog) -->
+      <div class="admin-tabs-nav">
+        <button type="button" class="admin-tab-btn active" id="tabOrdersBtn" onclick="switchAdminTab('orders')">
+          <span>📦 Customer Orders</span>
+          <span class="order-counter-badge" id="adminOrderBadge">0</span>
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabCatalogBtn" onclick="switchAdminTab('catalog')">
+          <span>🧴 Perfume Catalog & Pricing</span>
+        </button>
+      </div>
+
+      <!-- 1. Customer Orders Management Section -->
+      <div class="admin-panel-card" id="adminOrdersSection">
+        <div class="panel-card-header" style="cursor:default; display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.25rem;">📦</span>
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:600; color:#fff; margin:0;">Customer Orders</h3>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">Online Cash on Delivery (COD) Storefront Orders</p>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:0.5rem;">
+            <button type="button" class="admin-btn-secondary" onclick="refreshAdminOrders()">
+              <span>🔄 Refresh Orders</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Orders Filter bar -->
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-glass); display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;">
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;" id="orderFilterPills">
+            <button type="button" class="admin-filter-pill active" onclick="setAdminOrderFilter('all', this)">All Orders</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminOrderFilter('pending', this)">🔔 Pending (New)</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminOrderFilter('processing', this)">⚙️ Processing</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminOrderFilter('dispatched', this)">🚚 Dispatched</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminOrderFilter('delivered', this)">✅ Delivered</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminOrderFilter('cancelled', this)">✕ Cancelled</button>
+          </div>
+
+          <div style="min-width: 240px; flex: 1; max-width: 320px;">
+            <input type="text" id="adminOrderSearchInput" class="admin-input" placeholder="Search by Name, Phone, or ID..." oninput="handleAdminOrderSearch(this.value)">
+          </div>
+        </div>
+
+        <!-- Orders List Container -->
+        <div class="admin-orders-list" id="adminOrdersList">
+          <!-- Rendered dynamically -->
         </div>
       </div>
 
@@ -157,8 +208,8 @@
         </div>
       </div>
 
-      <!-- Products Management Section -->
-      <div class="admin-panel-card">
+      <!-- 2. Products Management Section -->
+      <div class="admin-panel-card" id="adminCatalogSection" style="display: none;">
         <div class="panel-card-header" style="cursor:default; display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem;">
           <div style="display:flex; align-items:center; gap:0.5rem;">
             <span style="font-size:1.1rem;">🧴</span>
@@ -457,7 +508,9 @@
     // 3. Admin Dashboard Render & Actions
     async function initAdminDashboard() {
       await loadCatalogData();
+      await loadOrdersData();
       renderAdminProducts();
+      renderAdminOrders();
       renderAdminStats();
       populateSettingsForm();
       renderDbStatusBanner();
@@ -471,7 +524,7 @@
           <div class="db-banner-content db-connected">
             <span class="db-status-dot green"></span>
             <div>
-              <strong>Live Supabase Cloud Connected:</strong> Perfumes and prices sync instantly with your PostgreSQL database.
+              <strong>Live Supabase Cloud Connected:</strong> Perfumes, prices, and orders sync instantly with your PostgreSQL database.
             </div>
           </div>
         `;
@@ -489,10 +542,245 @@
 
     function renderAdminStats() {
       const catalog = getActiveCatalog();
+      const orders = getActiveOrders();
+      const pendingOrders = orders.filter(o => o.status === 'pending').length;
+
+      const statNewEl = document.getElementById("statNewOrders");
+      const statTotalOrdersEl = document.getElementById("statTotalOrders");
+      const badgeEl = document.getElementById("adminOrderBadge");
+
+      if (statNewEl) statNewEl.textContent = pendingOrders;
+      if (statTotalOrdersEl) statTotalOrdersEl.textContent = orders.length;
+      if (badgeEl) {
+        badgeEl.textContent = pendingOrders;
+        badgeEl.style.display = pendingOrders > 0 ? "inline-block" : "none";
+      }
+
       document.getElementById("statTotal").textContent = catalog.length;
-      document.getElementById("statAuthentic").textContent = catalog.filter(p => p.category === "authentic").length;
-      document.getElementById("statInspired").textContent = catalog.filter(p => p.category === "inspired").length;
       document.getElementById("statOutStock").textContent = catalog.filter(p => p.in_stock === false).length;
+    }
+
+    // Tab Switching: Orders vs Catalog
+    function switchAdminTab(tab) {
+      const ordersSection = document.getElementById("adminOrdersSection");
+      const catalogSection = document.getElementById("adminCatalogSection");
+      const tabOrdersBtn = document.getElementById("tabOrdersBtn");
+      const tabCatalogBtn = document.getElementById("tabCatalogBtn");
+
+      if (tab === "orders") {
+        ordersSection.style.display = "block";
+        catalogSection.style.display = "none";
+        tabOrdersBtn.classList.add("active");
+        tabCatalogBtn.classList.remove("active");
+      } else {
+        ordersSection.style.display = "none";
+        catalogSection.style.display = "block";
+        tabCatalogBtn.classList.add("active");
+        tabOrdersBtn.classList.remove("active");
+      }
+    }
+
+    // Orders Filter & Management
+    let adminOrderFilter = "all";
+    let adminOrderSearchTerm = "";
+
+    function setAdminOrderFilter(filter, btn) {
+      adminOrderFilter = filter;
+      document.querySelectorAll("#orderFilterPills .admin-filter-pill").forEach(p => p.classList.remove("active"));
+      if (btn) {
+        btn.classList.add("active");
+      } else {
+        const pills = document.querySelectorAll("#orderFilterPills .admin-filter-pill");
+        pills.forEach(p => {
+          if (p.textContent.toLowerCase().includes(filter)) p.classList.add("active");
+        });
+      }
+      renderAdminOrders();
+    }
+
+    function handleAdminOrderSearch(term) {
+      adminOrderSearchTerm = term.toLowerCase().trim();
+      renderAdminOrders();
+    }
+
+    async function refreshAdminOrders() {
+      await loadOrdersData();
+      renderAdminOrders();
+      renderAdminStats();
+    }
+
+    function renderAdminOrders() {
+      const container = document.getElementById("adminOrdersList");
+      if (!container) return;
+
+      let orders = getActiveOrders();
+
+      if (adminOrderFilter !== "all") {
+        orders = orders.filter(o => o.status === adminOrderFilter);
+      }
+
+      if (adminOrderSearchTerm) {
+        orders = orders.filter(o => 
+          (o.customer_name && o.customer_name.toLowerCase().includes(adminOrderSearchTerm)) ||
+          (o.customer_phone && o.customer_phone.includes(adminOrderSearchTerm)) ||
+          (o.id && o.id.toLowerCase().includes(adminOrderSearchTerm)) ||
+          (o.customer_city && o.customer_city.toLowerCase().includes(adminOrderSearchTerm))
+        );
+      }
+
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:3.5rem 1rem; color:var(--text-muted);">
+            <div style="font-size:2.2rem; margin-bottom:0.5rem;">📭</div>
+            <div style="font-size:0.95rem;">No orders found matching this filter.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = orders.map(order => {
+        const dateObj = new Date(order.created_at);
+        const formattedDate = !isNaN(dateObj) 
+          ? dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + " • " + dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          : "Just now";
+
+        let itemHtml = "";
+        if (order.items) {
+          if (order.items.type === 'single') {
+            itemHtml = `
+              <div class="order-item-desc">
+                <div style="font-weight:600; color:#fff; font-size:0.95rem;">${order.items.name}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin:0.15rem 0;">${order.items.brand} • <span style="color:var(--accent-gold);">${order.items.size}</span></div>
+              </div>
+            `;
+          } else if (order.items.type === 'pack') {
+            const list = (order.items.scents || []).map(s => s.name).join(', ');
+            itemHtml = `
+              <div class="order-item-desc">
+                <div style="font-weight:600; color:#fff; font-size:0.95rem;">🎁 ${order.items.packTitle}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin:0.2rem 0;">${list}</div>
+                <div style="font-size:0.75rem; color:#4ade80; font-weight:600;">FREE ISLANDWIDE DELIVERY</div>
+              </div>
+            `;
+          } else {
+            itemHtml = `<div class="order-item-desc">Perfume item</div>`;
+          }
+        }
+
+        const currentStatus = order.status || 'pending';
+        const statusClass = `status-${currentStatus}`;
+        const statusLabel = currentStatus.toUpperCase();
+
+        return `
+          <div class="order-card-row ${statusClass}">
+            <div class="order-row-top">
+              <div class="order-id-group">
+                <span class="order-id-badge">#${order.id}</span>
+                <span class="order-date-text">${formattedDate}</span>
+              </div>
+              <span class="order-status-pill ${statusClass}">${statusLabel}</span>
+            </div>
+
+            <div class="order-row-details">
+              <!-- Customer Info -->
+              <div class="order-customer-info">
+                <div class="order-cust-name">👤 ${order.customer_name}</div>
+                <div class="order-cust-phone">
+                  📞 <a href="tel:${order.customer_phone}">${order.customer_phone}</a>
+                </div>
+                <div class="order-cust-address">
+                  📍 ${order.customer_address}, ${order.customer_city}
+                </div>
+                ${order.customer_note ? `<div class="order-cust-note">📝 <em>"${order.customer_note}"</em></div>` : ''}
+              </div>
+
+              <!-- Item info & Price -->
+              <div class="order-items-info">
+                ${itemHtml}
+                <div class="order-price-tag">
+                  Total: <span>Rs. ${(order.total_price || 0).toLocaleString()}</span>
+                  <span class="order-cod-label">Cash on Delivery</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="order-row-actions">
+              <div class="order-status-select-wrap">
+                <label style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">Status:</label>
+                <select class="admin-input-sm" onchange="changeOrderStatus('${order.id}', this.value)">
+                  <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>🔔 Pending (New)</option>
+                  <option value="processing" ${currentStatus === 'processing' ? 'selected' : ''}>⚙️ Processing</option>
+                  <option value="dispatched" ${currentStatus === 'dispatched' ? 'selected' : ''}>🚚 Dispatched</option>
+                  <option value="delivered" ${currentStatus === 'delivered' ? 'selected' : ''}>✅ Delivered</option>
+                  <option value="cancelled" ${currentStatus === 'cancelled' ? 'selected' : ''}>✕ Cancelled</option>
+                </select>
+              </div>
+
+              <div class="order-btns-group">
+                <button type="button" class="btn-order-wa" onclick="sendOrderWhatsApp('${order.id}')" title="Message Customer on WhatsApp">
+                  💬 WhatsApp
+                </button>
+                <a href="tel:${order.customer_phone}" class="btn-order-call" title="Call Customer">
+                  📞 Call
+                </a>
+                <button type="button" class="btn-delete-prod" onclick="deleteAdminOrder('${order.id}')" title="Delete Order">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function changeOrderStatus(orderId, newStatus) {
+      await syncOrderStatusUpdate(orderId, newStatus);
+      renderAdminOrders();
+      renderAdminStats();
+    }
+
+    async function deleteAdminOrder(orderId) {
+      if (confirm(`ඔබට මෙම ඇණවුම (#${orderId}) සම්පූර්ණයෙන්ම ඉවත් කිරීමට අවශ්‍යද?`)) {
+        await syncOrderDelete(orderId);
+        renderAdminOrders();
+        renderAdminStats();
+      }
+    }
+
+    function sendOrderWhatsApp(orderId) {
+      const order = getActiveOrders().find(o => o.id === orderId);
+      if (!order) return;
+      let phone = order.customer_phone.replace(/[^0-9]/g, '');
+      if (phone.startsWith('0')) phone = '94' + phone.substring(1);
+      else if (!phone.startsWith('94')) phone = '94' + phone;
+
+      let statusMsg = "";
+      if (order.status === 'processing') {
+        statusMsg = "ඔබගේ ඇණවුම මේ වන විට සූදානම් කරමින් පවතී (Processing).";
+      } else if (order.status === 'dispatched') {
+        statusMsg = "ඔබගේ ඇණවුම අද දින කුරියර් සේවාව (Courier Service) වෙත භාරදෙන ලදී. දින 1-3ක් ඇතුළත ඔබට ලැබෙනු ඇත.";
+      } else if (order.status === 'delivered') {
+        statusMsg = "ඔබගේ ඇණවුම සාර්ථකව Deliver කර ඇත. අප තෝරාගැනීම පිළිබඳව ස්තූතියි!";
+      } else {
+        statusMsg = "ඔබගේ ඇණවුම අප වෙත ලැබී ඇති අතර ඉතා ඉක්මනින්ම ඔබ අමතා තහවුරු කරනු ඇත.";
+      }
+
+      const itemDesc = order.items && order.items.type === 'single'
+        ? `${order.items.name} (${order.items.size})`
+        : (order.items?.packTitle || "Perfume Pack");
+
+      const text = 
+`👋 ආයුබෝවන් *${order.customer_name}*,
+Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම *#${order.id}* පිළිබඳවයි.
+
+📦 *ඇණවුම:* ${itemDesc}
+💰 *මුදල:* Rs. ${(order.total_price || 0).toLocaleString()} (Cash on Delivery)
+📍 *ලිපිනය:* ${order.customer_address}, ${order.customer_city}
+🚚 *තත්ත්වය:* ${statusMsg}
+
+ඕනෑම විමසීමක් සඳහා මෙම අංකයෙන් අප හා සම්බන්ධ වන්න. ස්තූතියි! ✨`;
+
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
     }
 
     function setAdminFilter(category, btn) {

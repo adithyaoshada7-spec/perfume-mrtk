@@ -147,6 +147,96 @@
     </div>
   </div>
 
+  <!-- ========================================================
+       Direct Cash on Delivery Checkout Modal
+       ======================================================== -->
+  <div class="modal-overlay" id="checkoutModal">
+    <div class="modal-window checkout-modal-window">
+      <button class="modal-close" onclick="closeCheckoutModal()" title="Close checkout">✕</button>
+
+      <!-- View 1: Checkout Form -->
+      <div id="checkoutFormView">
+        <div class="checkout-header">
+          <span class="checkout-badge">⚡ Instant Order • Cash on Delivery</span>
+          <h3 class="checkout-title">Complete Your Luxury Order</h3>
+          <p class="checkout-subtitle">භාණ්ඩ ලැබුණු පසු මුදල් ගෙවන්න (No online card payment needed)</p>
+        </div>
+
+        <!-- Selected Item Preview -->
+        <div class="order-summary-card" id="checkoutItemPreview">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <form id="orderCheckoutForm" onsubmit="handleOrderSubmit(event)">
+          <div class="checkout-form-grid">
+            <div class="form-group">
+              <label>Full Name (ඔබගේ සම්පූර්ණ නම) *</label>
+              <input type="text" id="custName" class="admin-input" placeholder="e.g. Kasun Perera" required>
+            </div>
+
+            <div class="form-group">
+              <label>Phone Number (දුරකථන අංකය) *</label>
+              <input type="tel" id="custPhone" class="admin-input" placeholder="e.g. 077 123 4567" required>
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label>Delivery Address (භාණ්ඩ ලැබිය යුතු ලිපිනය) *</label>
+              <input type="text" id="custAddress" class="admin-input" placeholder="e.g. No. 45, Galle Road" required>
+            </div>
+
+            <div class="form-group">
+              <label>City / Town (ළඟම නගරය) *</label>
+              <input type="text" id="custCity" class="admin-input" placeholder="e.g. Colombo, Kandy, Galle, Gampaha" required>
+            </div>
+
+            <div class="form-group">
+              <label>Payment Method</label>
+              <div class="payment-method-box">
+                <span class="cod-tag">💵 Cash on Delivery</span>
+                <span class="cod-desc">Pay upon receiving package</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label>Special Instructions / Notes (විකල්ප)</label>
+              <input type="text" id="custNote" class="admin-input" placeholder="e.g. Please call before delivery">
+            </div>
+          </div>
+
+          <div class="checkout-btn-bar">
+            <button type="submit" class="btn-confirm-order" id="btnSubmitOrder">
+              <span>🛍️ ඇණවුම තහවුරු කරන්න (Confirm Order)</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- View 2: Order Placed Success View -->
+      <div id="checkoutSuccessView" style="display:none; text-align:center; padding: 1.5rem 0.5rem;">
+        <div class="success-icon-wrap">✨</div>
+        <h3 class="success-title">ඇණවුම සාර්ථකව ලැබිණි!</h3>
+        <p class="success-order-id">Order Reference: <strong id="successOrderId">#PIO-0000</strong></p>
+        <p class="success-desc">
+          ස්තූතියි! ඔබගේ ඇණවුම අපගේ පද්ධතියට ලැබිණි. අපගේ කණ්ඩායම විසින් පැය කිහිපයක් ඇතුළත ඔබ අමතා ඇණවුම තහවුරු කර දිවයින පුරා බෙදාහැරීම (Delivery) ආරම්භ කරනු ඇත.
+        </p>
+
+        <div class="success-details-box" id="successOrderDetails">
+          <!-- Summary rendered dynamically -->
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1.5rem;">
+          <a href="#" id="successWaReceiptBtn" target="_blank" class="btn-wa-receipt">
+            <span>💬 Send a copy to WhatsApp (Optional)</span>
+          </a>
+          <button type="button" class="btn-done-order" onclick="closeCheckoutModal()">
+            <span>Done / Continue Browsing</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Live Value Indicator (Highlights personal client integration) -->
   <div class="client-preview-badge">
     <span class="client-dot"></span>

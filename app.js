@@ -437,6 +437,317 @@ async function syncProductDelete(productId) {
 }
 
 // ========================================================
+// ORDERS DATA MANAGEMENT LAYER (SUPABASE + LOCAL STORAGE)
+// ========================================================
+let RUNTIME_ORDERS = [];
+
+async function loadOrdersData() {
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        RUNTIME_ORDERS = data.map(o => ({
+          ...o,
+          items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
+        }));
+        localStorage.setItem("piyora_orders", JSON.stringify(RUNTIME_ORDERS));
+        return RUNTIME_ORDERS;
+      }
+    } catch (e) {
+      console.warn("Supabase load orders error:", e);
+    }
+  }
+
+  const saved = localStorage.getItem("piyora_orders");
+  if (saved) {
+    try {
+      RUNTIME_ORDERS = JSON.parse(saved);
+    } catch (e) {
+      RUNTIME_ORDERS = [];
+    }
+  } else {
+    RUNTIME_ORDERS = [];
+  }
+  return RUNTIME_ORDERS;
+}
+
+function getActiveOrders() {
+  return RUNTIME_ORDERS;
+}
+
+async function syncOrderInsert(order) {
+  RUNTIME_ORDERS.unshift(order);
+  localStorage.setItem("piyora_orders", JSON.stringify(RUNTIME_ORDERS));
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from('orders').insert({
+        id: order.id,
+        customer_name: order.customer_name,
+        customer_phone: order.customer_phone,
+        customer_address: order.customer_address,
+        customer_city: order.customer_city,
+        customer_note: order.customer_note || "",
+        items: order.items,
+        total_price: order.total_price,
+        status: order.status || 'pending',
+        payment_method: order.payment_method || 'Cash on Delivery',
+        created_at: order.created_at || new Date().toISOString()
+      });
+    } catch (e) {
+      console.warn("Supabase insert order error:", e);
+    }
+  }
+}
+
+async function syncOrderStatusUpdate(orderId, newStatus) {
+  const order = RUNTIME_ORDERS.find(o => o.id === orderId);
+  if (order) {
+    order.status = newStatus;
+    localStorage.setItem("piyora_orders", JSON.stringify(RUNTIME_ORDERS));
+  }
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from('orders').update({ status: newStatus }).eq('id', orderId);
+    } catch (e) {
+      console.warn("Supabase update order status error:", e);
+    }
+  }
+}
+
+async function syncOrderDelete(orderId) {
+  RUNTIME_ORDERS = RUNTIME_ORDERS.filter(o => o.id !== orderId);
+  localStorage.setItem("piyora_orders", JSON.stringify(RUNTIME_ORDERS));
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from('orders').delete().eq('id', orderId);
+    } catch (e) {
+      console.warn("Supabase delete order error:", e);
+    }
+  }
+}
+
+// ========================================================
+// ON-SITE CASH ON DELIVERY CHECKOUT ENGINE
+// ========================================================
+let currentCheckoutItem = null;
+
+function openCheckoutModal(productId, sizeKey) {
+  const product = getActiveCatalog().find(p => p.id === productId);
+  if (!product) return;
+
+  const chosenSize = sizeKey || cardStates[productId]?.selectedSize || Object.keys(product.sizes)[0];
+  const sizeData = product.sizes[chosenSize] || Object.values(product.sizes)[0];
+  if (!sizeData) return;
+
+  currentCheckoutItem = {
+    type: "single",
+    productId: product.id,
+    name: product.name,
+    brand: product.brand,
+    image: product.image,
+    size: chosenSize,
+    price: sizeData.price,
+    priceLabel: sizeData.label,
+    freeDelivery: !!sizeData.freeDelivery
+  };
+
+  renderCheckoutPreview();
+  const formView = document.getElementById("checkoutFormView");
+  const successView = document.getElementById("checkoutSuccessView");
+  const form = document.getElementById("orderCheckoutForm");
+  if (formView) formView.style.display = "block";
+  if (successView) successView.style.display = "none";
+  if (form) form.reset();
+
+  const modal = document.getElementById("checkoutModal");
+  if (modal) modal.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function openPackCheckoutModal() {
+  const maxAllowed = selectedPackTier === "3-pack" ? 3 : 5;
+  if (selectedScents.size < maxAllowed) {
+    alert(`කරුණාකර මෙම පැක් එක සඳහා Perfumes ${maxAllowed}ක් තෝරාගන්න.`);
+    return;
+  }
+
+  const catalog = getActiveCatalog();
+  const chosenList = Array.from(selectedScents).map(id => {
+    const p = catalog.find(item => item.id === id);
+    return { id, name: p ? p.name : id, brand: p ? p.brand : "" };
+  });
+
+  const packTitle = selectedPackTier === "3-pack" ? "3-Bottle Discovery Pack (15ml x 3)" : "5-Bottle Collector's Pack (15ml x 5)";
+  const price = selectedPackTier === "3-pack" ? 3450 : 5250;
+
+  currentCheckoutItem = {
+    type: "pack",
+    packTitle,
+    tier: selectedPackTier,
+    price: price,
+    priceLabel: `Rs. ${price.toLocaleString()}`,
+    scents: chosenList,
+    freeDelivery: true
+  };
+
+  renderCheckoutPreview();
+  const formView = document.getElementById("checkoutFormView");
+  const successView = document.getElementById("checkoutSuccessView");
+  const form = document.getElementById("orderCheckoutForm");
+  if (formView) formView.style.display = "block";
+  if (successView) successView.style.display = "none";
+  if (form) form.reset();
+
+  const modal = document.getElementById("checkoutModal");
+  if (modal) modal.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeCheckoutModal() {
+  const modal = document.getElementById("checkoutModal");
+  if (modal) {
+    modal.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+}
+
+function renderCheckoutPreview() {
+  const container = document.getElementById("checkoutItemPreview");
+  if (!container || !currentCheckoutItem) return;
+
+  if (currentCheckoutItem.type === "single") {
+    container.innerHTML = `
+      <div class="summary-thumb-box">
+        <img src="${currentCheckoutItem.image}" alt="${currentCheckoutItem.name}" class="summary-thumb-img" onerror="this.src='logo.jpg'">
+      </div>
+      <div class="summary-details">
+        <div class="summary-brand">${currentCheckoutItem.brand}</div>
+        <div class="summary-name">${currentCheckoutItem.name}</div>
+        <div class="summary-size">Selected: <strong>${currentCheckoutItem.size}</strong></div>
+        <div class="summary-price-row">
+          <span class="summary-price">${currentCheckoutItem.priceLabel}</span>
+          <span class="summary-tag-free">🚚 ${currentCheckoutItem.freeDelivery ? 'FREE DELIVERY' : 'Islandwide Delivery Available'}</span>
+        </div>
+      </div>
+    `;
+  } else {
+    const scentsHtml = currentCheckoutItem.scents.map((s, i) => `<li>${i + 1}. <strong>${s.name}</strong></li>`).join('');
+    container.innerHTML = `
+      <div class="summary-thumb-box pack-thumb-box">
+        <span style="font-size:1.8rem;">🎁</span>
+      </div>
+      <div class="summary-details">
+        <div class="summary-brand">PIYORA 15ML DISCOVERY SET</div>
+        <div class="summary-name">${currentCheckoutItem.packTitle}</div>
+        <ul class="summary-pack-list">
+          ${scentsHtml}
+        </ul>
+        <div class="summary-price-row">
+          <span class="summary-price">${currentCheckoutItem.priceLabel}</span>
+          <span class="summary-tag-free">🚚 FREE ISLANDWIDE DELIVERY</span>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function handleOrderSubmit(e) {
+  e.preventDefault();
+  if (!currentCheckoutItem) return;
+
+  const btn = document.getElementById("btnSubmitOrder");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>⏳ Processing Order...</span>`;
+  }
+
+  const name = document.getElementById("custName").value.trim();
+  const phone = document.getElementById("custPhone").value.trim();
+  const address = document.getElementById("custAddress").value.trim();
+  const city = document.getElementById("custCity").value.trim();
+  const note = document.getElementById("custNote").value.trim();
+
+  const randSuffix = Math.floor(1000 + Math.random() * 9000);
+  const orderId = "PIO-" + randSuffix;
+  const now = new Date().toISOString();
+
+  const newOrder = {
+    id: orderId,
+    customer_name: name,
+    customer_phone: phone,
+    customer_address: address,
+    customer_city: city,
+    customer_note: note,
+    items: currentCheckoutItem,
+    total_price: currentCheckoutItem.price,
+    status: 'pending',
+    payment_method: 'Cash on Delivery',
+    created_at: now
+  };
+
+  await syncOrderInsert(newOrder);
+
+  // Show success view
+  const formView = document.getElementById("checkoutFormView");
+  const successView = document.getElementById("checkoutSuccessView");
+  if (formView) formView.style.display = "none";
+  if (successView) successView.style.display = "block";
+
+  const orderIdEl = document.getElementById("successOrderId");
+  if (orderIdEl) orderIdEl.textContent = `#${orderId}`;
+
+  const summaryEl = document.getElementById("successOrderDetails");
+  if (summaryEl) {
+    const itemTitle = currentCheckoutItem.type === "single" 
+      ? `${currentCheckoutItem.name} (${currentCheckoutItem.size})`
+      : `${currentCheckoutItem.packTitle}`;
+
+    summaryEl.innerHTML = `
+      <div style="font-size:0.9rem; color:#fff; font-weight:600; margin-bottom:0.35rem;">${itemTitle}</div>
+      <div style="color:var(--accent-gold); font-weight:700; font-size:1.15rem;">${currentCheckoutItem.priceLabel} (Cash on Delivery)</div>
+      <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.4rem;">
+        Deliver to: <strong>${name}</strong>, ${address}, ${city} (📞 ${phone})
+      </div>
+    `;
+  }
+
+  // Pre-fill optional WhatsApp receipt button
+  const waReceiptBtn = document.getElementById("successWaReceiptBtn");
+  if (waReceiptBtn) {
+    const waText = 
+`🛍️ *PIYORA ORDER RECEIPT - #${orderId}*
+----------------------------------------
+👤 *Customer:* ${name}
+📞 *Phone:* ${phone}
+📍 *Address:* ${address}, ${city}
+${note ? `📝 *Note:* ${note}\n` : ''}----------------------------------------
+📦 *Item:* ${currentCheckoutItem.type === "single" ? `${currentCheckoutItem.name} (${currentCheckoutItem.size})` : `${currentCheckoutItem.packTitle}`}
+💰 *Total (COD):* ${currentCheckoutItem.priceLabel}
+🚚 *Delivery:* FREE Islandwide Delivery Included
+----------------------------------------
+Hi Piyora! I placed order #${orderId} on your site. Please confirm dispatch!`;
+
+    waReceiptBtn.href = `https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(waText)}`;
+  }
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<span>🛍️ ඇණවුම තහවුරු කරන්න (Confirm Order)</span>`;
+  }
+}
+
+// ========================================================
 // 2. STOREFRONT WHATSAPP & ORDER LOGIC
 // ========================================================
 
@@ -562,16 +873,15 @@ function renderProducts(items) {
             </div>
 
             ${isInStock ? `
-              <a 
-                href="${buildWhatsAppUrl(p, activeSize)}" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                class="btn-whatsapp-order" 
+              <button 
+                type="button" 
+                class="btn-whatsapp-order btn-order-now" 
                 id="wa-btn-${p.id}"
+                onclick="openCheckoutModal('${p.id}')"
               >
-                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
-                <span>Order via WhatsApp</span>
-              </a>
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                <span>Order Now (Cash on Delivery)</span>
+              </button>
             ` : `
               <a 
                 href="https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(`Hi Piyora! Please notify me when ${product.name} is back in stock.`)}" 
@@ -701,17 +1011,16 @@ function openDetailsModal(productId) {
         </div>
 
         ${isInStock ? `
-          <a 
-            href="${buildWhatsAppUrl(product, currentSize)}" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            class="btn-whatsapp-order" 
+          <button 
+            type="button" 
+            class="btn-whatsapp-order btn-order-now" 
             id="modal-wa-btn"
-            style="padding: 0.9rem 1.5rem; font-size: 0.95rem;"
+            onclick="closeModal(); openCheckoutModal('${product.id}', '${currentSize}');"
+            style="padding: 0.9rem 1.5rem; font-size: 0.95rem; cursor: pointer;"
           >
-            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
-            <span>Order via WhatsApp (${currentSize})</span>
-          </a>
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            <span>Order Now (${currentSize})</span>
+          </button>
         ` : `
           <a 
             href="https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(`Hi Piyora! Please notify me when ${product.name} is back in stock.`)}" 
@@ -753,8 +1062,12 @@ function changeModalSize(productId, sizeKey) {
 
     const waBtn = document.getElementById("modal-wa-btn");
     if (waBtn && product.in_stock !== false) {
-      waBtn.href = buildWhatsAppUrl(product, sizeKey);
-      waBtn.querySelector('span').textContent = `Order via WhatsApp (${sizeKey})`;
+      waBtn.onclick = () => {
+        closeModal();
+        openCheckoutModal(product.id, sizeKey);
+      };
+      const span = waBtn.querySelector('span');
+      if (span) span.textContent = `Order Now (${sizeKey})`;
     }
   }
 }
@@ -913,10 +1226,15 @@ ${formattedList}
 ------------------------------------------
 👋 Hi Piyora! Here is my custom discovery set. Please confirm and dispatch via Cash on Delivery!`;
 
-      orderBtn.href = `https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(msg)}`;
+      orderBtn.removeAttribute("href");
+      orderBtn.removeAttribute("target");
+      orderBtn.onclick = (e) => {
+        e.preventDefault();
+        openPackCheckoutModal();
+      };
       orderBtn.innerHTML = `
-        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
-        <span>Order Custom Pack via WhatsApp (${price} • Free Delivery)</span>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+        <span>Confirm & Order Pack (${price} • Free Delivery)</span>
       `;
       orderBtn.style.opacity = "1";
       orderBtn.style.pointerEvents = "auto";
@@ -973,15 +1291,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
-    // Modal
+    // Modals
     const modalContainer = document.getElementById("modalContainer");
     if (modalContainer) {
       modalContainer.addEventListener("click", (e) => {
         if (e.target === modalContainer) closeModal();
       });
     }
+    const checkoutModal = document.getElementById("checkoutModal");
+    if (checkoutModal) {
+      checkoutModal.addEventListener("click", (e) => {
+        if (e.target === checkoutModal) closeCheckoutModal();
+      });
+    }
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeModal();
+      if (e.key === "Escape") {
+        closeModal();
+        closeCheckoutModal();
+      }
     });
   }
 });
