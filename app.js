@@ -873,15 +873,27 @@ function renderProducts(items) {
             </div>
 
             ${isInStock ? `
-              <button 
-                type="button" 
-                class="btn-whatsapp-order btn-order-now" 
-                id="wa-btn-${p.id}"
-                onclick="openCheckoutModal('${p.id}')"
-              >
-                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-                <span>Order Now (Cash on Delivery)</span>
-              </button>
+              <div class="card-btn-stack">
+                <a 
+                  href="${buildWhatsAppUrl(p, activeSize)}" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  class="btn-whatsapp-order btn-card-wa" 
+                  id="wa-btn-${p.id}"
+                >
+                  <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+                  <span>Order via WhatsApp</span>
+                </a>
+                <button 
+                  type="button" 
+                  class="btn-whatsapp-order btn-order-now" 
+                  id="order-btn-${p.id}"
+                  onclick="openCheckoutModal('${p.id}')"
+                >
+                  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                  <span>Order Now (Cash on Delivery)</span>
+                </button>
+              </div>
             ` : `
               <a 
                 href="https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(`Hi Piyora! Please notify me when ${product.name} is back in stock.`)}" 
@@ -1011,16 +1023,29 @@ function openDetailsModal(productId) {
         </div>
 
         ${isInStock ? `
-          <button 
-            type="button" 
-            class="btn-whatsapp-order btn-order-now" 
-            id="modal-wa-btn"
-            onclick="closeModal(); openCheckoutModal('${product.id}', '${currentSize}');"
-            style="padding: 0.9rem 1.5rem; font-size: 0.95rem; cursor: pointer;"
-          >
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-            <span>Order Now (${currentSize})</span>
-          </button>
+          <div class="modal-btn-stack" style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.75rem;">
+            <a 
+              href="${buildWhatsAppUrl(product, currentSize)}" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="btn-whatsapp-order" 
+              id="modal-wa-btn"
+              style="padding: 0.85rem 1.5rem; font-size: 0.92rem;"
+            >
+              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+              <span>Order via WhatsApp (${currentSize})</span>
+            </a>
+            <button 
+              type="button" 
+              class="btn-whatsapp-order btn-order-now" 
+              id="modal-order-now-btn"
+              onclick="closeModal(); openCheckoutModal('${product.id}', '${currentSize}');"
+              style="padding: 0.85rem 1.5rem; font-size: 0.92rem; cursor: pointer;"
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+              <span>Order Now - Cash on Delivery (${currentSize})</span>
+            </button>
+          </div>
         ` : `
           <a 
             href="https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(`Hi Piyora! Please notify me when ${product.name} is back in stock.`)}" 
@@ -1062,12 +1087,18 @@ function changeModalSize(productId, sizeKey) {
 
     const waBtn = document.getElementById("modal-wa-btn");
     if (waBtn && product.in_stock !== false) {
-      waBtn.onclick = () => {
+      waBtn.href = buildWhatsAppUrl(product, sizeKey);
+      const span = waBtn.querySelector('span');
+      if (span) span.textContent = `Order via WhatsApp (${sizeKey})`;
+    }
+    const orderBtn = document.getElementById("modal-order-now-btn");
+    if (orderBtn && product.in_stock !== false) {
+      orderBtn.onclick = () => {
         closeModal();
         openCheckoutModal(product.id, sizeKey);
       };
-      const span = waBtn.querySelector('span');
-      if (span) span.textContent = `Order Now (${sizeKey})`;
+      const span = orderBtn.querySelector('span');
+      if (span) span.textContent = `Order Now - Cash on Delivery (${sizeKey})`;
     }
   }
 }
@@ -1226,20 +1257,29 @@ ${formattedList}
 ------------------------------------------
 👋 Hi Piyora! Here is my custom discovery set. Please confirm and dispatch via Cash on Delivery!`;
 
-      orderBtn.removeAttribute("href");
-      orderBtn.removeAttribute("target");
+      const orderBtnWa = document.getElementById("btnOrderPackWa");
+      if (orderBtnWa) {
+        orderBtnWa.style.display = "flex";
+        orderBtnWa.href = `https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(msg)}`;
+        orderBtnWa.innerHTML = `
+          <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+          <span>Order Pack via WhatsApp (${price} • Free Delivery)</span>
+        `;
+      }
+
       orderBtn.onclick = (e) => {
         e.preventDefault();
         openPackCheckoutModal();
       };
       orderBtn.innerHTML = `
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-        <span>Confirm & Order Pack (${price} • Free Delivery)</span>
+        <span>Order Now - Cash on Delivery (${price})</span>
       `;
       orderBtn.style.opacity = "1";
       orderBtn.style.pointerEvents = "auto";
     } else {
-      orderBtn.href = "#";
+      const orderBtnWa = document.getElementById("btnOrderPackWa");
+      if (orderBtnWa) orderBtnWa.style.display = "none";
       orderBtn.innerHTML = `<span>Select ${maxAllowed - selectedScents.size} more scent(s) to complete pack</span>`;
       orderBtn.style.opacity = "0.5";
       orderBtn.style.pointerEvents = "none";

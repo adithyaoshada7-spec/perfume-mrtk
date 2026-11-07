@@ -630,6 +630,21 @@ body {
   transform: translateY(0);
 }
 
+.card-btn-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+}
+.btn-card-wa {
+  padding: 0.65rem 0.9rem;
+  font-size: 0.82rem;
+}
+.btn-order-now {
+  padding: 0.65rem 0.9rem;
+  font-size: 0.82rem;
+}
+
 /* Interactive Modal / Quick View Drawer */
 .modal-overlay {
   position: fixed;
