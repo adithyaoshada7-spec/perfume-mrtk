@@ -2166,6 +2166,12 @@ body {
   color: #a5f3fc;
   box-shadow: 0 0 16px rgba(0, 242, 234, 0.25);
 }
+.header-social-btn.fb:hover {
+  background: rgba(24, 119, 242, 0.2);
+  border-color: rgba(24, 119, 242, 0.5);
+  color: #93c5fd;
+  box-shadow: 0 0 16px rgba(24, 119, 242, 0.25);
+}
 @media (max-width: 600px) {
   .header-social-btn .social-btn-text {
     display: none;
@@ -2267,14 +2273,15 @@ body {
 /* Social Cards Grid */
 .social-cards-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
-  max-width: 860px;
+  max-width: 1040px;
   margin: 0 auto;
 }
-@media (max-width: 650px) {
+@media (max-width: 900px) {
   .social-cards-grid {
     grid-template-columns: 1fr;
+    max-width: 520px;
   }
 }
 .social-experience-card {
@@ -2310,6 +2317,9 @@ body {
 .tt-glow {
   background: radial-gradient(circle, #00f2fe 0%, #fe0979 100%);
 }
+.fb-glow {
+  background: radial-gradient(circle, #1877f2 0%, #3b82f6 100%);
+}
 .social-experience-card:hover {
   transform: translateY(-4px);
   border-color: rgba(212, 175, 55, 0.4);
@@ -2344,6 +2354,11 @@ body {
   background: rgba(0, 242, 234, 0.1);
   color: #67e8f9;
   border: 1px solid rgba(0, 242, 234, 0.3);
+}
+.fb-badge {
+  background: rgba(24, 119, 242, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(24, 119, 242, 0.3);
 }
 .social-handle {
   font-family: monospace;
@@ -2411,4 +2426,9 @@ body {
   border-color: rgba(0, 242, 234, 0.6);
   background: rgba(0, 242, 234, 0.15);
   color: #67e8f9;
+}
+.footer-social-btn.fb:hover {
+  border-color: rgba(24, 119, 242, 0.6);
+  background: rgba(24, 119, 242, 0.15);
+  color: #93c5fd;
 }
