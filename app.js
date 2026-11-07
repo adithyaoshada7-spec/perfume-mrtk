@@ -301,25 +301,38 @@ async function loadCatalogData() {
         .order('display_order', { ascending: true });
 
       if (!error && data && data.length > 0) {
-        RUNTIME_CATALOG = data.map(row => ({
-          id: row.id,
-          name: row.name,
-          brand: row.brand,
-          category: row.category,
-          gender: row.gender,
-          image: row.image,
-          badge: row.badge,
-          accords: typeof row.accords === 'string' ? JSON.parse(row.accords) : (row.accords || []),
-          topNotes: row.top_notes || "",
-          heartNotes: row.heart_notes || "",
-          baseNotes: row.base_notes || "",
-          longevity: row.longevity || "14h+ Lasting",
-          description: row.description || "",
-          sizes: typeof row.sizes === 'string' ? JSON.parse(row.sizes) : row.sizes,
-          defaultSize: row.category === 'authentic' ? '10ml Decant' : '3-Pack (3x15ml)',
-          in_stock: row.in_stock !== false,
-          display_order: row.display_order || 0
-        }));
+        RUNTIME_CATALOG = data.map(row => {
+          let imagesArr = [];
+          if (Array.isArray(row.images) && row.images.length > 0) {
+            imagesArr = row.images;
+          } else if (typeof row.images === 'string' && row.images.trim().startsWith('[')) {
+            try { imagesArr = JSON.parse(row.images); } catch(e) { imagesArr = []; }
+          }
+          if (!imagesArr.length && row.image) {
+            imagesArr = [row.image];
+          }
+
+          return {
+            id: row.id,
+            name: row.name,
+            brand: row.brand,
+            category: row.category,
+            gender: row.gender,
+            image: imagesArr[0] || row.image || 'logo.jpg',
+            images: imagesArr,
+            badge: row.badge,
+            accords: typeof row.accords === 'string' ? JSON.parse(row.accords) : (row.accords || []),
+            topNotes: row.top_notes || "",
+            heartNotes: row.heart_notes || "",
+            baseNotes: row.base_notes || "",
+            longevity: row.longevity || "14h+ Lasting",
+            description: row.description || "",
+            sizes: typeof row.sizes === 'string' ? JSON.parse(row.sizes) : row.sizes,
+            defaultSize: row.category === 'authentic' ? '10ml Decant' : '3-Pack (3x15ml)',
+            in_stock: row.in_stock !== false,
+            display_order: row.display_order || 0
+          };
+        });
 
         // Cache locally
         localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
@@ -335,6 +348,11 @@ async function loadCatalogData() {
     const cached = localStorage.getItem("piyora_catalog");
     if (cached) {
       RUNTIME_CATALOG = JSON.parse(cached);
+      // Ensure images array exists on all cached items
+      RUNTIME_CATALOG = RUNTIME_CATALOG.map(p => ({
+        ...p,
+        images: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image ? [p.image] : [])
+      }));
       return RUNTIME_CATALOG;
     }
   } catch (e) {}
@@ -356,6 +374,12 @@ function getActiveCatalog() {
  * Sync updates to Supabase and LocalStorage
  */
 async function syncProductUpdate(product) {
+  // Ensure images array and primary image match
+  if (!Array.isArray(product.images) || product.images.length === 0) {
+    product.images = product.image ? [product.image] : ['logo.jpg'];
+  }
+  product.image = product.images[0];
+
   // Update local runtime
   const idx = RUNTIME_CATALOG.findIndex(p => p.id === product.id);
   if (idx !== -1) RUNTIME_CATALOG[idx] = product;
@@ -373,6 +397,7 @@ async function syncProductUpdate(product) {
           category: product.category,
           gender: product.gender,
           image: product.image,
+          images: product.images,
           badge: product.badge,
           sizes: product.sizes,
           top_notes: product.topNotes,
@@ -390,6 +415,11 @@ async function syncProductUpdate(product) {
 }
 
 async function syncProductInsert(product) {
+  if (!Array.isArray(product.images) || product.images.length === 0) {
+    product.images = product.image ? [product.image] : ['logo.jpg'];
+  }
+  product.image = product.images[0];
+
   RUNTIME_CATALOG.unshift(product);
   localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
 
@@ -405,6 +435,7 @@ async function syncProductInsert(product) {
           category: product.category,
           gender: product.gender,
           image: product.image,
+          images: product.images,
           badge: product.badge,
           accords: product.accords,
           top_notes: product.topNotes,
@@ -938,6 +969,35 @@ function changeCardSize(productId, sizeKey) {
 }
 
 /**
+ * Details Modal Gallery State & Controls
+ */
+let currentModalImages = [];
+let currentModalImageIndex = 0;
+
+function selectModalGalleryImage(index) {
+  if (!currentModalImages || index < 0 || index >= currentModalImages.length) return;
+  currentModalImageIndex = index;
+  const mainImg = document.getElementById("modalMainImg");
+  const counter = document.getElementById("modalGalleryCounter");
+  if (mainImg) mainImg.src = currentModalImages[index];
+  if (counter) counter.textContent = `${index + 1} / ${currentModalImages.length}`;
+
+  const thumbs = document.querySelectorAll(".modal-thumb-btn");
+  thumbs.forEach((t, i) => {
+    if (i === index) t.classList.add("active");
+    else t.classList.remove("active");
+  });
+}
+
+function navModalGallery(direction) {
+  if (!currentModalImages || currentModalImages.length <= 1) return;
+  let nextIndex = currentModalImageIndex + direction;
+  if (nextIndex < 0) nextIndex = currentModalImages.length - 1;
+  else if (nextIndex >= currentModalImages.length) nextIndex = 0;
+  selectModalGalleryImage(nextIndex);
+}
+
+/**
  * Details Modal
  */
 function openDetailsModal(productId) {
@@ -949,17 +1009,43 @@ function openDetailsModal(productId) {
   const isAuthentic = product.category === "authentic";
   const isInStock = product.in_stock !== false;
 
+  currentModalImages = Array.isArray(product.images) && product.images.length > 0 
+    ? product.images 
+    : [product.image || 'logo.jpg'];
+  currentModalImageIndex = 0;
+
   const modalContainer = document.getElementById("modalContainer");
   const modalBody = document.getElementById("modalBody");
   if (!modalContainer || !modalBody) return;
 
+  const hasMultipleImages = currentModalImages.length > 1;
+
   modalBody.innerHTML = `
     <div class="modal-grid">
       <div class="modal-img-col">
-        <img class="modal-img" src="${product.image}" alt="${product.name}">
-        <span class="type-badge ${isAuthentic ? 'badge-authentic' : 'badge-inspired'}" style="top:1.25rem; left:1.25rem;">
-          ${product.badge}
-        </span>
+        <div class="modal-gallery-wrap">
+          <div class="modal-main-img-box">
+            <img id="modalMainImg" class="modal-img" src="${currentModalImages[0]}" alt="${product.name}">
+            <span class="type-badge ${isAuthentic ? 'badge-authentic' : 'badge-inspired'}" style="top:1.25rem; left:1.25rem; z-index:3;">
+              ${product.badge}
+            </span>
+            ${hasMultipleImages ? `
+              <div class="modal-gallery-counter" id="modalGalleryCounter">1 / ${currentModalImages.length}</div>
+              <button type="button" class="modal-gallery-nav modal-gallery-prev" onclick="navModalGallery(-1)" aria-label="Previous photo">‹</button>
+              <button type="button" class="modal-gallery-nav modal-gallery-next" onclick="navModalGallery(1)" aria-label="Next photo">›</button>
+            ` : ''}
+          </div>
+
+          ${hasMultipleImages ? `
+            <div class="modal-thumb-strip">
+              ${currentModalImages.map((img, i) => `
+                <button type="button" class="modal-thumb-btn ${i === 0 ? 'active' : ''}" onclick="selectModalGalleryImage(${i})" title="Photo ${i+1}">
+                  <img src="${img}" alt="Thumbnail ${i+1}" onerror="this.src='logo.jpg'">
+                </button>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
       </div>
 
       <div class="modal-details-col">

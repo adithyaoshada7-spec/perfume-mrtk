@@ -1,9 +1,6 @@
 -- ==============================================================
--- PIYORA PERFUMES - SUPABASE DATABASE SCHEMA
--- Instructions:
--- 1. Create a free project on https://supabase.com
--- 2. Open the "SQL Editor" in your Supabase dashboard
--- 3. Paste this entire script and click "Run"
+-- PIYORA PERFUMES - COMPLETE SUPABASE DATABASE SCHEMA
+-- Compatible with multiple executions (Re-run safe / Idempotent)
 -- ==============================================================
 
 -- 1. Create perfumes table
@@ -14,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.perfumes (
   category TEXT NOT NULL CHECK (category IN ('authentic', 'inspired')),
   gender TEXT NOT NULL CHECK (gender IN ('men', 'women', 'unisex')),
   image TEXT NOT NULL,
+  images JSONB DEFAULT '[]'::jsonb,
   badge TEXT NOT NULL,
   accords JSONB DEFAULT '[]'::jsonb,
   top_notes TEXT,
@@ -27,6 +25,9 @@ CREATE TABLE IF NOT EXISTS public.perfumes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Ensure 'images' column exists if perfumes table was created earlier
+ALTER TABLE public.perfumes ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+
 -- 2. Create site_settings table (for WhatsApp number & Admin PIN)
 CREATE TABLE IF NOT EXISTS public.site_settings (
   key TEXT PRIMARY KEY,
@@ -34,22 +35,49 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. Enable Row Level Security (RLS) with Public Read & Anon Update access
+-- 3. Create orders table (Cash on Delivery orders)
+CREATE TABLE IF NOT EXISTS public.orders (
+  id TEXT PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  customer_address TEXT NOT NULL,
+  customer_city TEXT NOT NULL,
+  customer_note TEXT,
+  items JSONB NOT NULL,
+  total_price NUMERIC NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'dispatched', 'delivered', 'cancelled')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 4. Enable Row Level Security (RLS)
 ALTER TABLE public.perfumes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
--- Allow anyone to read products (Storefront customers)
+-- 5. Drop existing policies before creating them to avoid 42710 "already exists" errors
+DROP POLICY IF EXISTS "Public Read Access on perfumes" ON public.perfumes;
+DROP POLICY IF EXISTS "Public Write Access on perfumes" ON public.perfumes;
+
+DROP POLICY IF EXISTS "Public Read Access on site_settings" ON public.site_settings;
+DROP POLICY IF EXISTS "Public Write Access on site_settings" ON public.site_settings;
+
+DROP POLICY IF EXISTS "Public Insert Access on orders" ON public.orders;
+DROP POLICY IF EXISTS "Public Read Access on orders" ON public.orders;
+DROP POLICY IF EXISTS "Public Update Access on orders" ON public.orders;
+DROP POLICY IF EXISTS "Public Delete Access on orders" ON public.orders;
+
+-- 6. Create clean idempotent policies
+-- Perfumes: Public Read and Full Write (via Admin PIN)
 CREATE POLICY "Public Read Access on perfumes" 
   ON public.perfumes FOR SELECT 
   USING (true);
 
--- Allow authenticated/anon with API key to insert/update/delete (Admin panel via PIN)
 CREATE POLICY "Public Write Access on perfumes" 
   ON public.perfumes FOR ALL 
   USING (true)
   WITH CHECK (true);
 
--- Settings policies
+-- Site Settings: Public Read and Full Write
 CREATE POLICY "Public Read Access on site_settings" 
   ON public.site_settings FOR SELECT 
   USING (true);
@@ -59,15 +87,33 @@ CREATE POLICY "Public Write Access on site_settings"
   USING (true)
   WITH CHECK (true);
 
--- 4. Seed Initial Settings
+-- Orders: Customers can insert orders; Store Admin can read, update status, and manage orders
+CREATE POLICY "Public Insert Access on orders" 
+  ON public.orders FOR INSERT 
+  WITH CHECK (true);
+
+CREATE POLICY "Public Read Access on orders" 
+  ON public.orders FOR SELECT 
+  USING (true);
+
+CREATE POLICY "Public Update Access on orders" 
+  ON public.orders FOR UPDATE 
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Public Delete Access on orders" 
+  ON public.orders FOR DELETE 
+  USING (true);
+
+-- 7. Seed Initial Settings
 INSERT INTO public.site_settings (key, value) VALUES
   ('whatsapp_number', '94786623081'),
   ('admin_pin', '7120')
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
--- 5. Seed Initial Perfume Catalog (Authentic Decants & Inspired 15ml)
+-- 8. Seed Initial Perfume Catalog (with multi-image support)
 INSERT INTO public.perfumes 
-  (id, name, brand, category, gender, image, badge, accords, top_notes, heart_notes, base_notes, longevity, description, sizes, in_stock, display_order)
+  (id, name, brand, category, gender, image, images, badge, accords, top_notes, heart_notes, base_notes, longevity, description, sizes, in_stock, display_order)
 VALUES
   (
     'auth-aventus',
@@ -76,6 +122,7 @@ VALUES
     'authentic',
     'men',
     'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     '100% Authentic Decant',
     '["Smoky Pineapple", "Birch", "Ambergris"]'::jsonb,
     'Bergamot, Blackcurrant, Apple, Pineapple',
@@ -94,6 +141,7 @@ VALUES
     'authentic',
     'men',
     'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     '100% Authentic Decant',
     '["Warm Spicy", "Lavender", "Licorice Wood"]'::jsonb,
     'Cinnamon, Nutmeg, Cardamom, Grapefruit',
@@ -112,6 +160,7 @@ VALUES
     'authentic',
     'men',
     'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     '100% Authentic Decant',
     '["Woody Aromatic", "Cedar", "Sandalwood"]'::jsonb,
     'Lemon Zest, Bergamot, Mint, Artemisia',
@@ -130,6 +179,7 @@ VALUES
     'authentic',
     'unisex',
     'https://images.unsplash.com/photo-1563178406-4cdc2923acbc?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1563178406-4cdc2923acbc?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     '100% Authentic Decant',
     '["Dark Florals", "Black Truffle", "Rich Patchouli"]'::jsonb,
     'Truffle, Gardenia, Blackcurrant, Ylang-Ylang',
@@ -148,6 +198,7 @@ VALUES
     'inspired',
     'men',
     'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     'Inspired • 15ml Luxury',
     '["Smoky Pineapple", "Rich Birch", "Clean Musk"]'::jsonb,
     'Pineapple, Bergamot, Apple',
@@ -166,6 +217,7 @@ VALUES
     'inspired',
     'unisex',
     'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1563178406-4cdc2923acbc?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     'Inspired • 15ml Luxury',
     '["Saffron Sweetness", "Warm Amber", "Cedarwood"]'::jsonb,
     'Saffron, Jasmine Sambac',
@@ -184,6 +236,7 @@ VALUES
     'inspired',
     'men',
     'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     'Inspired • 15ml Luxury',
     '["Nutmeg & Cinnamon", "Lavender", "Dark Woods"]'::jsonb,
     'Cinnamon, Nutmeg, Cardamom',
@@ -202,6 +255,7 @@ VALUES
     'inspired',
     'women',
     'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     'Inspired • 15ml Luxury',
     '["Orange Blossom", "Vanilla Orchid", "Lavender"]'::jsonb,
     'Mandarin, Bergamot, Lavender',
@@ -220,6 +274,7 @@ VALUES
     'inspired',
     'unisex',
     'https://images.unsplash.com/photo-1563178406-4cdc2923acbc?auto=format&fit=crop&w=700&q=80',
+    '["https://images.unsplash.com/photo-1563178406-4cdc2923acbc?auto=format&fit=crop&w=700&q=80", "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=700&q=80"]'::jsonb,
     'Inspired • 15ml Luxury',
     '["Warm Tobacco", "Rich Vanilla", "Spicy Cacao"]'::jsonb,
     'Tobacco Leaf, Spicy Notes',
@@ -231,4 +286,6 @@ VALUES
     true,
     9
   )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  image = EXCLUDED.image,
+  images = COALESCE(EXCLUDED.images, public.perfumes.images);

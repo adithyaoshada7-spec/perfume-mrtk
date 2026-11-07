@@ -291,24 +291,27 @@
           </div>
 
           <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Perfume Image * (Upload from Device or Paste URL)</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+              <label style="margin:0;">Perfume Images (Up to 6 Photos) *</label>
+              <span class="img-count-pill" id="newProdImgCount">0 / 6 Photos</span>
+            </div>
             <div class="image-upload-wrapper">
-              <div class="image-upload-controls">
-                <div class="image-preview-box">
-                  <img id="newProdImagePreview" src="logo.jpg" alt="Preview" class="image-preview-img" onerror="this.src='logo.jpg'">
-                </div>
-                <div>
-                  <label class="image-upload-btn-label">
-                    📁 <span>Choose File / Take Photo</span>
-                    <input type="file" id="newProdFileInput" class="image-upload-input-hidden" accept="image/*" onchange="handleImageFileSelect(this, 'newProdImage', 'newProdImagePreview')">
-                  </label>
-                  <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.35rem;">
-                    Upload direct from Phone/PC (Auto-compressed & optimized)
-                  </div>
+              <div class="multi-img-actions">
+                <label class="image-upload-btn-label">
+                  📁 <span>Choose Photos (Max 6)</span>
+                  <input type="file" id="newProdFileInput" class="image-upload-input-hidden" accept="image/*" multiple onchange="handleMultiImageSelect(this, 'add')">
+                </label>
+                <div class="url-input-addon">
+                  <input type="text" id="newProdUrlInput" class="admin-input-sm" placeholder="Or paste image URL...">
+                  <button type="button" class="btn-add-url" onclick="handleAddImageUrl('add')">+ Add URL</button>
                 </div>
               </div>
-              <div>
-                <input type="text" id="newProdImage" class="admin-input" placeholder="Or paste image URL (e.g. https://...)" oninput="handleImageUrlInput(this.value, 'newProdImagePreview')" required>
+              
+              <div class="admin-img-preview-grid" id="newProdImagesGrid">
+                <!-- Injected dynamically -->
+              </div>
+              <div style="font-size:0.72rem; color:var(--text-muted); display:flex; align-items:center; gap:0.4rem;">
+                <span>💡 Photo 1 is your <strong>Main Cover Photo</strong>. Click <em>"★ Set Cover"</em> on any photo to make it the cover.</span>
               </div>
             </div>
           </div>
@@ -377,24 +380,27 @@
           </div>
 
           <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Perfume Image * (Upload New or Update URL)</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+              <label style="margin:0;">Perfume Images (Up to 6 Photos) *</label>
+              <span class="img-count-pill" id="editProdImgCount">0 / 6 Photos</span>
+            </div>
             <div class="image-upload-wrapper">
-              <div class="image-upload-controls">
-                <div class="image-preview-box">
-                  <img id="editProdImagePreview" src="logo.jpg" alt="Preview" class="image-preview-img" onerror="this.src='logo.jpg'">
-                </div>
-                <div>
-                  <label class="image-upload-btn-label">
-                    📁 <span>Choose File / Take Photo</span>
-                    <input type="file" id="editProdFileInput" class="image-upload-input-hidden" accept="image/*" onchange="handleImageFileSelect(this, 'editProdImage', 'editProdImagePreview')">
-                  </label>
-                  <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.35rem;">
-                    Upload direct from Phone/PC (Auto-compressed & optimized)
-                  </div>
+              <div class="multi-img-actions">
+                <label class="image-upload-btn-label">
+                  📁 <span>Choose Photos (Max 6)</span>
+                  <input type="file" id="editProdFileInput" class="image-upload-input-hidden" accept="image/*" multiple onchange="handleMultiImageSelect(this, 'edit')">
+                </label>
+                <div class="url-input-addon">
+                  <input type="text" id="editProdUrlInput" class="admin-input-sm" placeholder="Or paste image URL...">
+                  <button type="button" class="btn-add-url" onclick="handleAddImageUrl('edit')">+ Add URL</button>
                 </div>
               </div>
-              <div>
-                <input type="text" id="editProdImage" class="admin-input" placeholder="Or paste image URL" oninput="handleImageUrlInput(this.value, 'editProdImagePreview')" required>
+              
+              <div class="admin-img-preview-grid" id="editProdImagesGrid">
+                <!-- Injected dynamically -->
+              </div>
+              <div style="font-size:0.72rem; color:var(--text-muted); display:flex; align-items:center; gap:0.4rem;">
+                <span>💡 Photo 1 is your <strong>Main Cover Photo</strong>. Click <em>"★ Set Cover"</em> on any photo or <em>"✕"</em> to remove.</span>
               </div>
             </div>
           </div>
@@ -860,7 +866,8 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
         return `
           <div class="admin-product-row ${!isInStock ? 'out-of-stock-row' : ''}">
             <div class="admin-prod-thumb-col">
-              <img src="${p.image}" alt="${p.name}" class="admin-prod-thumb">
+              <img src="${p.image}" alt="${p.name}" class="admin-prod-thumb" onerror="this.src='logo.jpg'">
+              ${Array.isArray(p.images) && p.images.length > 1 ? `<span class="thumb-multi-badge" title="${p.images.length} photos">📸 ${p.images.length}</span>` : ''}
               <span class="type-badge ${isAuthentic ? 'badge-authentic' : 'badge-inspired'}">${p.category}</span>
             </div>
 
@@ -946,8 +953,119 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       }
     }
 
-    // 7. Add Product Modal logic
+    // ========================================================
+    // 7. MULTI-IMAGE MANAGEMENT (UP TO 6 PHOTOS PER PRODUCT)
+    // ========================================================
+    let addModalImages = [];
+    let editModalImages = [];
+
+    function renderMultiImageGrid(mode) {
+      const isAdd = mode === 'add';
+      const images = isAdd ? addModalImages : editModalImages;
+      const gridEl = document.getElementById(isAdd ? 'newProdImagesGrid' : 'editProdImagesGrid');
+      const countEl = document.getElementById(isAdd ? 'newProdImgCount' : 'editProdImgCount');
+
+      if (countEl) {
+        countEl.textContent = `${images.length} / 6 Photos`;
+        if (images.length >= 6) {
+          countEl.classList.add('full');
+        } else {
+          countEl.classList.remove('full');
+        }
+      }
+
+      if (!gridEl) return;
+
+      if (images.length === 0) {
+        gridEl.innerHTML = `
+          <div class="empty-img-placeholder">
+            <span>📷 No photos selected yet. Upload up to 6 photos or paste image URLs.</span>
+          </div>
+        `;
+        return;
+      }
+
+      gridEl.innerHTML = images.map((imgSrc, idx) => `
+        <div class="admin-thumb-slot ${idx === 0 ? 'is-cover' : ''}">
+          <img src="${imgSrc}" alt="Photo ${idx+1}" onerror="this.src='logo.jpg'">
+          <span class="slot-index-badge">${idx + 1}</span>
+          ${idx === 0 
+            ? `<span class="slot-cover-badge">⭐ MAIN</span>` 
+            : `<button type="button" class="slot-make-cover-btn" onclick="makeCoverImage('${mode}', ${idx})" title="Set as Main Cover Photo">★ Set Cover</button>`
+          }
+          <button type="button" class="slot-delete-btn" onclick="removeMultiImage('${mode}', ${idx})" title="Remove photo">✕</button>
+        </div>
+      `).join('');
+    }
+
+    async function handleMultiImageSelect(input, mode) {
+      const files = Array.from(input.files || []);
+      if (!files.length) return;
+
+      const currentList = mode === 'add' ? addModalImages : editModalImages;
+      const availableSlots = 6 - currentList.length;
+
+      if (availableSlots <= 0) {
+        alert("උපරිම ඡායාරූප 6ක් පමණක් ඇතුළත් කළ හැක. (Maximum 6 photos allowed per perfume)");
+        input.value = "";
+        return;
+      }
+
+      const filesToProcess = files.slice(0, availableSlots);
+      for (const file of filesToProcess) {
+        try {
+          const base64 = await processImageFile(file, 800, 0.82);
+          if (currentList.length < 6) {
+            currentList.push(base64);
+          }
+        } catch (e) {
+          console.error("Image process error:", e);
+        }
+      }
+
+      input.value = "";
+      renderMultiImageGrid(mode);
+    }
+
+    function handleAddImageUrl(mode) {
+      const inputEl = document.getElementById(mode === 'add' ? 'newProdUrlInput' : 'editProdUrlInput');
+      const url = inputEl ? inputEl.value.trim() : '';
+      if (!url) return;
+
+      const currentList = mode === 'add' ? addModalImages : editModalImages;
+      if (currentList.length >= 6) {
+        alert("උපරිම ඡායාරූප 6ක් පමණක් ඇතුළත් කළ හැක. (Maximum 6 photos allowed per perfume)");
+        return;
+      }
+
+      currentList.push(url);
+      inputEl.value = "";
+      renderMultiImageGrid(mode);
+    }
+
+    function removeMultiImage(mode, idx) {
+      const list = mode === 'add' ? addModalImages : editModalImages;
+      if (idx >= 0 && idx < list.length) {
+        list.splice(idx, 1);
+        renderMultiImageGrid(mode);
+      }
+    }
+
+    function makeCoverImage(mode, idx) {
+      const list = mode === 'add' ? addModalImages : editModalImages;
+      if (idx > 0 && idx < list.length) {
+        const selected = list.splice(idx, 1)[0];
+        list.unshift(selected);
+        renderMultiImageGrid(mode);
+      }
+    }
+
+    // ========================================================
+    // 8. ADD PRODUCT MODAL LOGIC
+    // ========================================================
     function openAddProductModal() {
+      addModalImages = [];
+      renderMultiImageGrid('add');
       toggleCategoryPriceInputs();
       document.getElementById("addProductModal").classList.add("open");
     }
@@ -955,8 +1073,7 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
     function closeAddProductModal() {
       document.getElementById("addProductModal").classList.remove("open");
       document.getElementById("newPerfumeForm").reset();
-      const preview = document.getElementById("newProdImagePreview");
-      if (preview) preview.src = "logo.jpg";
+      addModalImages = [];
     }
 
     function toggleCategoryPriceInputs() {
@@ -999,12 +1116,16 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
 
     async function handleCreateProduct(e) {
       e.preventDefault();
+      if (addModalImages.length === 0) {
+        alert("කරුණාකර අවම වශයෙන් එක් ඡායාරූපයක් හෝ තෝරන්න. (Please add at least 1 image)");
+        return;
+      }
+
       const name = document.getElementById("newProdName").value.trim();
       const brand = document.getElementById("newProdBrand").value.trim();
       const category = document.getElementById("newProdCategory").value;
       const gender = document.getElementById("newProdGender").value;
       const longevity = document.getElementById("newProdLongevity").value.trim() || "14h+ Lasting";
-      const image = document.getElementById("newProdImage").value.trim();
       const notes = document.getElementById("newProdNotes").value.trim() || "Fragrant accords";
 
       const id = "prod-" + Date.now();
@@ -1034,7 +1155,8 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
         brand,
         category,
         gender,
-        image,
+        image: addModalImages[0],
+        images: [...addModalImages],
         badge: category === "authentic" ? "100% Authentic Decant" : "Inspired • 15ml Luxury",
         accords: ["Luxury Scent", "Refined Aroma"],
         topNotes: notes,
@@ -1055,7 +1177,7 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
     }
 
     // ========================================================
-    // 8. IMAGE PROCESSING & DIRECT UPLOAD (Client Compressed)
+    // 9. CLIENT-SIDE IMAGE COMPRESSION
     // ========================================================
     function processImageFile(file, maxWidth = 800, quality = 0.82) {
       return new Promise((resolve, reject) => {
@@ -1089,29 +1211,8 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       });
     }
 
-    async function handleImageFileSelect(input, targetInputId, targetPreviewId) {
-      const file = input.files && input.files[0];
-      if (!file) return;
-      try {
-        const compressedBase64 = await processImageFile(file, 800, 0.82);
-        document.getElementById(targetInputId).value = compressedBase64;
-        const preview = document.getElementById(targetPreviewId);
-        if (preview) preview.src = compressedBase64;
-      } catch (err) {
-        console.error("Error processing image:", err);
-        alert("රූපය process කිරීමේදී දෝෂයක් ඇති විය. කරුණාකර නැවත උත්සාහ කරන්න.");
-      }
-    }
-
-    function handleImageUrlInput(url, targetPreviewId) {
-      const preview = document.getElementById(targetPreviewId);
-      if (preview && url && url.trim().length > 5) {
-        preview.src = url.trim();
-      }
-    }
-
     // ========================================================
-    // 9. EDIT PERFUME MODAL LOGIC (Name, Brand, Notes, Image, Prices)
+    // 10. EDIT PERFUME MODAL LOGIC (Name, Brand, Notes, Up to 6 Images, Prices)
     // ========================================================
     function openEditProductModal(productId) {
       const product = getActiveCatalog().find(p => p.id === productId);
@@ -1124,9 +1225,13 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       document.getElementById("editProdCategoryDisplay").value = product.category === "authentic" ? "Authentic Decant" : "Inspired 15ml";
       document.getElementById("editProdGender").value = product.gender || "unisex";
       document.getElementById("editProdLongevity").value = product.longevity || "14h+ Lasting";
-      document.getElementById("editProdImage").value = product.image;
-      document.getElementById("editProdImagePreview").src = product.image;
       document.getElementById("editProdNotes").value = product.topNotes || (product.accords ? product.accords.join(', ') : "");
+
+      // Populate up to 6 images
+      editModalImages = Array.isArray(product.images) && product.images.length > 0 
+        ? [...product.images] 
+        : (product.image ? [product.image] : []);
+      renderMultiImageGrid('edit');
 
       const priceContainer = document.getElementById("editPriceFieldsContainer");
       if (product.category === "authentic") {
@@ -1181,18 +1286,23 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       const product = getActiveCatalog().find(p => p.id === id);
       if (!product) return;
 
+      if (editModalImages.length === 0) {
+        alert("කරුණාකර අවම වශයෙන් එක් ඡායාරූපයක් හෝ තෝරන්න. (Please add at least 1 image)");
+        return;
+      }
+
       const name = document.getElementById("editProdName").value.trim();
       const brand = document.getElementById("editProdBrand").value.trim();
       const gender = document.getElementById("editProdGender").value;
       const longevity = document.getElementById("editProdLongevity").value.trim() || "14h+ Lasting";
-      const image = document.getElementById("editProdImage").value.trim();
       const notes = document.getElementById("editProdNotes").value.trim() || "Fragrant accords";
 
       product.name = name;
       product.brand = brand;
       product.gender = gender;
       product.longevity = longevity;
-      product.image = image;
+      product.image = editModalImages[0];
+      product.images = [...editModalImages];
       product.topNotes = notes;
       product.heartNotes = notes;
       product.baseNotes = notes;
