@@ -49,12 +49,27 @@ CREATE TABLE IF NOT EXISTS public.orders (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. Enable Row Level Security (RLS)
+-- 4. Create reviews table (Customer feedback with attached screenshots)
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id TEXT PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  city TEXT,
+  perfume_name TEXT NOT NULL,
+  rating INTEGER DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT NOT NULL,
+  screenshot_url TEXT,
+  is_verified BOOLEAN DEFAULT true,
+  status TEXT DEFAULT 'approved' CHECK (status IN ('approved', 'pending', 'hidden')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 5. Enable Row Level Security (RLS)
 ALTER TABLE public.perfumes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
--- 5. Drop existing policies before creating them to avoid 42710 "already exists" errors
+-- 6. Drop existing policies before creating them to avoid 42710 "already exists" errors
 DROP POLICY IF EXISTS "Public Read Access on perfumes" ON public.perfumes;
 DROP POLICY IF EXISTS "Public Write Access on perfumes" ON public.perfumes;
 
@@ -66,7 +81,11 @@ DROP POLICY IF EXISTS "Public Read Access on orders" ON public.orders;
 DROP POLICY IF EXISTS "Public Update Access on orders" ON public.orders;
 DROP POLICY IF EXISTS "Public Delete Access on orders" ON public.orders;
 
--- 6. Create clean idempotent policies
+DROP POLICY IF EXISTS "Public Read Access on reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Public Insert Access on reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Public Write Access on reviews" ON public.reviews;
+
+-- 7. Create clean idempotent policies
 -- Perfumes: Public Read and Full Write (via Admin PIN)
 CREATE POLICY "Public Read Access on perfumes" 
   ON public.perfumes FOR SELECT 
@@ -104,6 +123,20 @@ CREATE POLICY "Public Update Access on orders"
 CREATE POLICY "Public Delete Access on orders" 
   ON public.orders FOR DELETE 
   USING (true);
+
+-- Reviews: Customers can read and submit; Admin can manage all
+CREATE POLICY "Public Read Access on reviews" 
+  ON public.reviews FOR SELECT 
+  USING (true);
+
+CREATE POLICY "Public Insert Access on reviews" 
+  ON public.reviews FOR INSERT 
+  WITH CHECK (true);
+
+CREATE POLICY "Public Write Access on reviews" 
+  ON public.reviews FOR ALL 
+  USING (true)
+  WITH CHECK (true);
 
 -- 7. Seed Initial Settings
 INSERT INTO public.site_settings (key, value) VALUES

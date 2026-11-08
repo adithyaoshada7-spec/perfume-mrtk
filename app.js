@@ -569,6 +569,324 @@ async function syncOrderDelete(orderId) {
 }
 
 // ========================================================
+// 3. REVIEWS & SCREENSHOTS MANAGEMENT LAYER (SUPABASE + LOCAL)
+// ========================================================
+const DEFAULT_SEED_REVIEWS = [
+  {
+    id: "rev-1",
+    customer_name: "Kasun Jayawardena",
+    city: "Colombo 07",
+    perfume_name: "Creed Aventus (Authentic Decant)",
+    rating: 5,
+    comment: "Original Creed decant ekakma thama. Scent eka 14 hours+ thiyenawa. Leakproof glass spray atomizer eka mara luxury. Highly recommended!",
+    screenshot_url: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=800&q=80",
+    is_verified: true,
+    status: "approved",
+    created_at: "2026-11-04T14:20:00Z"
+  },
+  {
+    id: "rev-2",
+    customer_name: "Dinuka Madushanka",
+    city: "Kandy",
+    perfume_name: "Rouge Crystal 540 15ml (Inspired)",
+    rating: 5,
+    comment: "Baccarat Rouge 540 smell ekama thiyenawa. Office ekedi okkoma ahuwa mokakda perfume eka kiyala. Fast delivery within 2 days to Kandy!",
+    screenshot_url: "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&w=800&q=80",
+    is_verified: true,
+    status: "approved",
+    created_at: "2026-11-05T09:15:00Z"
+  },
+  {
+    id: "rev-3",
+    customer_name: "Sachini Dissanayake",
+    city: "Kurunegala",
+    perfume_name: "3-Pack Inspired Bundle (Libre + Rouge + Sauvage)",
+    rating: 5,
+    comment: "Ordered 3-pack set. Delivery took only 2 days to Kurunegala. Long lasting sweet vanilla notes & free delivery was super convenient!",
+    screenshot_url: "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=800&q=80",
+    is_verified: true,
+    status: "approved",
+    created_at: "2026-11-06T18:40:00Z"
+  },
+  {
+    id: "rev-4",
+    customer_name: "Ravindu Alwis",
+    city: "Galle",
+    perfume_name: "Dior Sauvage Elixir (Authentic Decant)",
+    rating: 5,
+    comment: "Elixir decant eka beast mode lasting! 100% genuine batch verified. Trustworthy seller with cash on delivery. Definitely buying again.",
+    screenshot_url: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80",
+    is_verified: true,
+    status: "approved",
+    created_at: "2026-11-07T11:05:00Z"
+  }
+];
+
+let RUNTIME_REVIEWS = [];
+
+async function loadReviewsData() {
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from('reviews')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        RUNTIME_REVIEWS = data;
+        localStorage.setItem("piyora_reviews", JSON.stringify(RUNTIME_REVIEWS));
+        return RUNTIME_REVIEWS;
+      }
+    } catch (e) {
+      console.warn("Supabase load reviews error:", e);
+    }
+  }
+
+  const saved = localStorage.getItem("piyora_reviews");
+  if (saved) {
+    try {
+      RUNTIME_REVIEWS = JSON.parse(saved);
+      if (Array.isArray(RUNTIME_REVIEWS) && RUNTIME_REVIEWS.length > 0) {
+        return RUNTIME_REVIEWS;
+      }
+    } catch (e) {}
+  }
+
+  RUNTIME_REVIEWS = JSON.parse(JSON.stringify(DEFAULT_SEED_REVIEWS));
+  localStorage.setItem("piyora_reviews", JSON.stringify(RUNTIME_REVIEWS));
+  return RUNTIME_REVIEWS;
+}
+
+function getActiveReviews() {
+  if (!RUNTIME_REVIEWS || RUNTIME_REVIEWS.length === 0) {
+    RUNTIME_REVIEWS = JSON.parse(JSON.stringify(DEFAULT_SEED_REVIEWS));
+  }
+  return RUNTIME_REVIEWS;
+}
+
+async function syncReviewInsert(review) {
+  RUNTIME_REVIEWS.unshift(review);
+  localStorage.setItem("piyora_reviews", JSON.stringify(RUNTIME_REVIEWS));
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from('reviews').insert({
+        id: review.id,
+        customer_name: review.customer_name,
+        city: review.city || "",
+        perfume_name: review.perfume_name,
+        rating: review.rating || 5,
+        comment: review.comment,
+        screenshot_url: review.screenshot_url || "",
+        is_verified: review.is_verified !== false,
+        status: review.status || 'approved',
+        created_at: review.created_at || new Date().toISOString()
+      });
+    } catch (e) {
+      console.warn("Supabase insert review error:", e);
+    }
+  }
+}
+
+async function syncReviewDelete(reviewId) {
+  RUNTIME_REVIEWS = RUNTIME_REVIEWS.filter(r => r.id !== reviewId);
+  localStorage.setItem("piyora_reviews", JSON.stringify(RUNTIME_REVIEWS));
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from('reviews').delete().eq('id', reviewId);
+    } catch (e) {
+      console.warn("Supabase delete review error:", e);
+    }
+  }
+}
+
+// Storefront Reviews Lightbox & Render
+let storefrontReviewFilter = "all";
+
+function setStorefrontReviewFilter(filter, btn) {
+  storefrontReviewFilter = filter;
+  document.querySelectorAll(".review-filter-btn").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+  renderStorefrontReviews();
+}
+
+function renderStorefrontReviews() {
+  const container = document.getElementById("reviewsGrid");
+  if (!container) return;
+
+  let reviews = getActiveReviews().filter(r => r.status !== 'hidden');
+
+  if (storefrontReviewFilter === "screenshots") {
+    reviews = reviews.filter(r => r.screenshot_url && r.screenshot_url.trim().length > 0);
+  } else if (storefrontReviewFilter === "authentic") {
+    reviews = reviews.filter(r => r.perfume_name.toLowerCase().includes("authentic") || r.perfume_name.toLowerCase().includes("decant"));
+  } else if (storefrontReviewFilter === "inspired") {
+    reviews = reviews.filter(r => r.perfume_name.toLowerCase().includes("inspired") || r.perfume_name.toLowerCase().includes("15ml") || r.perfume_name.toLowerCase().includes("pack"));
+  }
+
+  if (reviews.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align:center; padding:3rem; color:var(--text-muted);">
+        <div style="font-size:2rem; margin-bottom:0.5rem;">💌</div>
+        <div>No reviews found in this filter. Be the first to add one!</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = reviews.map(rev => {
+    const stars = "★".repeat(rev.rating || 5) + "☆".repeat(Math.max(0, 5 - (rev.rating || 5)));
+    const dateObj = new Date(rev.created_at);
+    const dateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Recently";
+    const hasScreenshot = rev.screenshot_url && rev.screenshot_url.trim().length > 5;
+
+    return `
+      <div class="review-card ${hasScreenshot ? 'has-screenshot' : ''}">
+        <div class="review-card-top">
+          <div class="review-stars-wrap">
+            <span class="review-stars">${stars}</span>
+            <span class="review-rating-score">${(rev.rating || 5)}.0</span>
+          </div>
+          ${rev.is_verified ? `
+            <span class="review-verified-tag">
+              <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+              <span>Verified Purchase</span>
+            </span>
+          ` : ''}
+        </div>
+
+        <div class="review-perfume-badge">
+          🧴 ${rev.perfume_name}
+        </div>
+
+        <p class="review-comment-text">
+          "${rev.comment}"
+        </p>
+
+        ${hasScreenshot ? `
+          <div class="review-screenshot-box" onclick="openScreenshotLightbox('${rev.screenshot_url}', '${rev.customer_name}', '${rev.perfume_name}', '${encodeURIComponent(rev.comment)}')">
+            <img src="${rev.screenshot_url}" alt="Customer Review Screenshot" onerror="this.parentElement.style.display='none'">
+            <div class="review-screenshot-overlay">
+              <span class="screenshot-zoom-pill">
+                🔍 <span>View Full Screenshot</span>
+              </span>
+            </div>
+            <span class="screenshot-badge-pill">📸 WhatsApp / Proof</span>
+          </div>
+        ` : ''}
+
+        <div class="review-card-footer">
+          <div class="review-avatar-wrap">
+            <div class="review-avatar">${(rev.customer_name || 'C').charAt(0).toUpperCase()}</div>
+            <div>
+              <div class="review-author-name">${rev.customer_name}</div>
+              <div class="review-author-city">${rev.city ? '📍 ' + rev.city : 'Sri Lanka'} • <span style="color:var(--text-muted); font-size:0.7rem;">${dateStr}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Lightbox for reviewing screenshots
+function openScreenshotLightbox(imgUrl, author, perfume, encodedComment) {
+  const modal = document.getElementById("screenshotLightboxModal");
+  const imgEl = document.getElementById("lightboxImg");
+  const titleEl = document.getElementById("lightboxTitle");
+  const commentEl = document.getElementById("lightboxComment");
+
+  if (!modal || !imgEl) return;
+  imgEl.src = imgUrl;
+  if (titleEl) titleEl.textContent = `${author} • ${perfume}`;
+  if (commentEl) commentEl.textContent = `"${decodeURIComponent(encodedComment || '')}"`;
+
+  modal.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeScreenshotLightbox() {
+  const modal = document.getElementById("screenshotLightboxModal");
+  if (modal) modal.classList.remove("open");
+  document.body.style.overflow = "auto";
+}
+
+// Add Review Modal (Storefront)
+function openAddReviewModal() {
+  const modal = document.getElementById("addReviewModal");
+  if (modal) {
+    modal.classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+}
+
+function closeAddReviewModal() {
+  const modal = document.getElementById("addReviewModal");
+  if (modal) {
+    modal.classList.remove("open");
+    document.body.style.overflow = "auto";
+    const form = document.getElementById("customerReviewForm");
+    if (form) form.reset();
+    const preview = document.getElementById("reviewScreenshotPreview");
+    if (preview) preview.style.display = "none";
+  }
+}
+
+async function handleStorefrontReviewSubmit(e) {
+  e.preventDefault();
+  const name = document.getElementById("revCustName").value.trim();
+  const city = document.getElementById("revCustCity").value.trim() || "Sri Lanka";
+  const perfume = document.getElementById("revPerfume").value.trim();
+  const rating = parseInt(document.getElementById("revRating").value) || 5;
+  const comment = document.getElementById("revComment").value.trim();
+  const screenshot = document.getElementById("revScreenshotBase64").value.trim();
+
+  if (!name || !perfume || !comment) {
+    alert("කරුණාකර සියලුම අවශ්‍ය විස්තර පුරවන්න. (Please fill all required fields)");
+    return;
+  }
+
+  const newReview = {
+    id: "rev-" + Date.now(),
+    customer_name: name,
+    city: city,
+    perfume_name: perfume,
+    rating: rating,
+    comment: comment,
+    screenshot_url: screenshot,
+    is_verified: true,
+    status: "approved",
+    created_at: new Date().toISOString()
+  };
+
+  await syncReviewInsert(newReview);
+  closeAddReviewModal();
+  alert("ඔබගේ Review එක සාර්ථකව ඇතුළත් කරන ලදී! Piyora තෝරාගැනීම පිළිබඳව ස්තූතියි! ✨");
+  renderStorefrontReviews();
+}
+
+// Client-side screenshot preview for customer review form
+async function handleCustomerReviewImage(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    const base64 = await processImageFile(file, 800, 0.85);
+    document.getElementById("revScreenshotBase64").value = base64;
+    const preview = document.getElementById("reviewScreenshotPreview");
+    if (preview) {
+      preview.src = base64;
+      preview.style.display = "block";
+    }
+  } catch (err) {
+    console.error("Error processing screenshot:", err);
+  }
+}
+
+// ========================================================
 // ON-SITE CASH ON DELIVERY CHECKOUT ENGINE
 // ========================================================
 let currentCheckoutItem = null;
@@ -1382,9 +1700,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const grid = document.getElementById("productGrid");
   if (grid) {
     await loadCatalogData();
+    await loadReviewsData();
     initStates();
     renderProducts(getActiveCatalog());
     initPackBuilder();
+    renderStorefrontReviews();
 
     // Update WhatsApp links on page to match settings
     const currentNumber = getWhatsAppNumber();

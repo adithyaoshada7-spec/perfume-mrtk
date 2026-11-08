@@ -92,7 +92,7 @@
       </div>
 
       <!-- Quick Stats Strip -->
-      <div class="admin-stats-grid">
+      <div class="admin-stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
         <div class="stat-card stat-alert" style="cursor:pointer;" onclick="switchAdminTab('orders'); setAdminOrderFilter('pending');" title="View Pending Orders">
           <div class="stat-num" id="statNewOrders" style="color:var(--accent-gold);">0</div>
           <div class="stat-label">Pending Orders 🔔</div>
@@ -109,9 +109,13 @@
           <div class="stat-num" id="statOutStock">--</div>
           <div class="stat-label">Out of Stock</div>
         </div>
+        <div class="stat-card" style="cursor:pointer;" onclick="switchAdminTab('reviews');" title="View Customer Reviews & Proof">
+          <div class="stat-num" id="statTotalReviews" style="color:#10b981;">0</div>
+          <div class="stat-label">Reviews & Proof ⭐</div>
+        </div>
       </div>
 
-      <!-- Navigation Tabs (Orders vs Catalog) -->
+      <!-- Navigation Tabs (Orders vs Catalog vs Reviews) -->
       <div class="admin-tabs-nav">
         <button type="button" class="admin-tab-btn active" id="tabOrdersBtn" onclick="switchAdminTab('orders')">
           <span>📦 Customer Orders</span>
@@ -119,6 +123,10 @@
         </button>
         <button type="button" class="admin-tab-btn" id="tabCatalogBtn" onclick="switchAdminTab('catalog')">
           <span>🧴 Perfume Catalog & Pricing</span>
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabReviewsBtn" onclick="switchAdminTab('reviews')">
+          <span>⭐ Customer Reviews & Screenshots</span>
+          <span class="order-counter-badge" id="adminReviewBadge" style="background:#10b981;">0</span>
         </button>
       </div>
 
@@ -239,6 +247,45 @@
 
         <!-- Products List -->
         <div class="admin-product-list" id="adminProductList">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- ========================================================
+           3. Customer Reviews & Attached Screenshots Section
+           ======================================================== -->
+      <div class="admin-panel-card" id="adminReviewsSection" style="display: none;">
+        <div class="panel-card-header" style="cursor:default; display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.25rem;">⭐</span>
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:600; color:#fff; margin:0;">Customer Reviews & Screenshots</h3>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">Real WhatsApp chat screenshots, testimonials, and verified buyer feedback</p>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:0.5rem;">
+            <button type="button" class="admin-btn-primary" onclick="openAdminAddReviewModal()">
+              <span>+ Add Review & Screenshot</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Reviews Filters & Search bar -->
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-glass); display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;">
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;" id="reviewFilterPills">
+            <button type="button" class="admin-filter-pill active" onclick="setAdminReviewFilter('all', this)">All Reviews</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminReviewFilter('screenshots', this)">📸 With Screenshots Only</button>
+            <button type="button" class="admin-filter-pill" onclick="setAdminReviewFilter('5stars', this)">⭐⭐⭐⭐⭐ 5 Stars</button>
+          </div>
+
+          <div style="min-width: 240px; flex: 1; max-width: 320px;">
+            <input type="text" id="adminReviewSearchInput" class="admin-input" placeholder="Search review..." oninput="handleAdminReviewSearch(this.value)">
+          </div>
+        </div>
+
+        <!-- Reviews List -->
+        <div class="admin-reviews-list" id="adminReviewsList">
           <!-- Rendered dynamically -->
         </div>
       </div>
@@ -424,6 +471,88 @@
     </div>
   </div>
 
+  <!-- ========================================================
+       5. ADMIN ADD CUSTOMER REVIEW & SCREENSHOT MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="adminAddReviewModal" onclick="if(event.target===this) closeAdminAddReviewModal()">
+    <div class="modal-window" style="max-width: 600px; padding: 1.75rem;">
+      <button class="modal-close" onclick="closeAdminAddReviewModal()">✕</button>
+      <h3 style="font-family:var(--font-serif); font-size:1.4rem; color:#fff; margin-bottom:1.25rem;">
+        Add Customer Review & Screenshot
+      </h3>
+
+      <form id="adminReviewForm" onsubmit="handleAdminCreateReview(event)">
+        <div style="display:flex; flex-direction:column; gap:0.9rem;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div class="form-group">
+              <label>Customer Name *</label>
+              <input type="text" id="adminRevCustName" class="admin-input" placeholder="e.g. Kasun Jayawardena" required>
+            </div>
+            <div class="form-group">
+              <label>City / Location</label>
+              <input type="text" id="adminRevCustCity" class="admin-input" placeholder="e.g. Colombo, Kandy">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Perfume Purchased *</label>
+            <input type="text" id="adminRevPerfume" class="admin-input" placeholder="e.g. Creed Aventus Decant or Rouge Crystal 15ml" required>
+          </div>
+
+          <div class="form-group">
+            <label>Rating *</label>
+            <select id="adminRevRating" class="admin-input" style="font-weight:700; color:var(--accent-gold);">
+              <option value="5">⭐⭐⭐⭐⭐ 5 Stars (Exceptional)</option>
+              <option value="4">⭐⭐⭐⭐ 4 Stars (Very Good)</option>
+              <option value="3">⭐⭐⭐ 3 Stars (Average)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Customer Review / Comment *</label>
+            <textarea id="adminRevComment" class="admin-input" rows="3" placeholder="Customer quote, WhatsApp message or feedback..." required style="resize:vertical;"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Review Screenshot (Upload WhatsApp Chat / Delivery Photo or Paste URL) 📸</label>
+            <input type="hidden" id="adminRevScreenshotBase64">
+            <div class="image-upload-wrapper">
+              <div class="multi-img-actions">
+                <label class="image-upload-btn-label">
+                  📁 <span>Choose File / Screenshot</span>
+                  <input type="file" class="image-upload-input-hidden" accept="image/*" onchange="handleAdminReviewImageSelect(this)">
+                </label>
+                <div class="url-input-addon">
+                  <input type="text" class="admin-input-sm" placeholder="Or paste image URL..." oninput="handleAdminReviewUrlInput(this.value)">
+                </div>
+              </div>
+              <img id="adminRevScreenshotPreview" src="" alt="Preview" style="display:none; max-height:160px; border-radius:6px; object-fit:contain; border:1px solid var(--border-glass); margin-top:0.5rem;">
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="admin-btn-secondary" onclick="closeAdminAddReviewModal()">Cancel</button>
+          <button type="submit" class="admin-btn-primary"><span>Save Review & Proof</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Screenshot Lightbox Modal for Admin -->
+  <div class="modal-overlay" id="screenshotLightboxModal" onclick="if(event.target===this) closeScreenshotLightbox()">
+    <div class="modal-window lightbox-window">
+      <button class="modal-close" onclick="closeScreenshotLightbox()" title="Close Screenshot">✕</button>
+      <div class="lightbox-img-box">
+        <img id="lightboxImg" src="" alt="Customer Screenshot Proof">
+      </div>
+      <div class="lightbox-caption-bar">
+        <div class="lightbox-title" id="lightboxTitle">Customer Proof</div>
+        <div class="lightbox-comment" id="lightboxComment"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   <script>
     // ========================================================
@@ -515,8 +644,10 @@
     async function initAdminDashboard() {
       await loadCatalogData();
       await loadOrdersData();
+      await loadReviewsData();
       renderAdminProducts();
       renderAdminOrders();
+      renderAdminReviews();
       renderAdminStats();
       populateSettingsForm();
       renderDbStatusBanner();
@@ -530,7 +661,7 @@
           <div class="db-banner-content db-connected">
             <span class="db-status-dot green"></span>
             <div>
-              <strong>Live Supabase Cloud Connected:</strong> Perfumes, prices, and orders sync instantly with your PostgreSQL database.
+              <strong>Live Supabase Cloud Connected:</strong> Perfumes, prices, orders, and reviews sync instantly with your PostgreSQL database.
             </div>
           </div>
         `;
@@ -549,11 +680,14 @@
     function renderAdminStats() {
       const catalog = getActiveCatalog();
       const orders = getActiveOrders();
+      const reviews = getActiveReviews();
       const pendingOrders = orders.filter(o => o.status === 'pending').length;
 
       const statNewEl = document.getElementById("statNewOrders");
       const statTotalOrdersEl = document.getElementById("statTotalOrders");
       const badgeEl = document.getElementById("adminOrderBadge");
+      const statReviewsEl = document.getElementById("statTotalReviews");
+      const revBadgeEl = document.getElementById("adminReviewBadge");
 
       if (statNewEl) statNewEl.textContent = pendingOrders;
       if (statTotalOrdersEl) statTotalOrdersEl.textContent = orders.length;
@@ -562,28 +696,202 @@
         badgeEl.style.display = pendingOrders > 0 ? "inline-block" : "none";
       }
 
+      if (statReviewsEl) statReviewsEl.textContent = reviews.length;
+      if (revBadgeEl) revBadgeEl.textContent = reviews.length;
+
       document.getElementById("statTotal").textContent = catalog.length;
       document.getElementById("statOutStock").textContent = catalog.filter(p => p.in_stock === false).length;
     }
 
-    // Tab Switching: Orders vs Catalog
+    // Tab Switching: Orders vs Catalog vs Reviews
     function switchAdminTab(tab) {
       const ordersSection = document.getElementById("adminOrdersSection");
       const catalogSection = document.getElementById("adminCatalogSection");
+      const reviewsSection = document.getElementById("adminReviewsSection");
       const tabOrdersBtn = document.getElementById("tabOrdersBtn");
       const tabCatalogBtn = document.getElementById("tabCatalogBtn");
+      const tabReviewsBtn = document.getElementById("tabReviewsBtn");
 
-      if (tab === "orders") {
-        ordersSection.style.display = "block";
-        catalogSection.style.display = "none";
-        tabOrdersBtn.classList.add("active");
-        tabCatalogBtn.classList.remove("active");
-      } else {
-        ordersSection.style.display = "none";
-        catalogSection.style.display = "block";
-        tabCatalogBtn.classList.add("active");
-        tabOrdersBtn.classList.remove("active");
+      ordersSection.style.display = tab === "orders" ? "block" : "none";
+      catalogSection.style.display = tab === "catalog" ? "block" : "none";
+      if (reviewsSection) reviewsSection.style.display = tab === "reviews" ? "block" : "none";
+
+      tabOrdersBtn.classList.toggle("active", tab === "orders");
+      tabCatalogBtn.classList.toggle("active", tab === "catalog");
+      if (tabReviewsBtn) tabReviewsBtn.classList.toggle("active", tab === "reviews");
+    }
+
+    // ========================================================
+    // REVIEWS MANAGEMENT IN ADMIN
+    // ========================================================
+    let adminReviewFilter = "all";
+    let adminReviewSearchTerm = "";
+
+    function setAdminReviewFilter(filter, btn) {
+      adminReviewFilter = filter;
+      document.querySelectorAll("#reviewFilterPills .admin-filter-pill").forEach(p => p.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+      renderAdminReviews();
+    }
+
+    function handleAdminReviewSearch(term) {
+      adminReviewSearchTerm = term.toLowerCase().trim();
+      renderAdminReviews();
+    }
+
+    function renderAdminReviews() {
+      const container = document.getElementById("adminReviewsList");
+      if (!container) return;
+
+      let reviews = getActiveReviews();
+      if (adminReviewFilter === "screenshots") {
+        reviews = reviews.filter(r => r.screenshot_url && r.screenshot_url.trim().length > 5);
+      } else if (adminReviewFilter === "5stars") {
+        reviews = reviews.filter(r => (r.rating || 5) === 5);
       }
+
+      if (adminReviewSearchTerm) {
+        reviews = reviews.filter(r => 
+          (r.customer_name && r.customer_name.toLowerCase().includes(adminReviewSearchTerm)) ||
+          (r.perfume_name && r.perfume_name.toLowerCase().includes(adminReviewSearchTerm)) ||
+          (r.comment && r.comment.toLowerCase().includes(adminReviewSearchTerm))
+        );
+      }
+
+      if (reviews.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:3.5rem 1rem; color:var(--text-muted);">
+            <div style="font-size:2.2rem; margin-bottom:0.5rem;">⭐</div>
+            <div style="font-size:0.95rem;">No reviews found. Click "+ Add Review & Screenshot" to add one!</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = reviews.map(rev => {
+        const stars = "★".repeat(rev.rating || 5);
+        const hasImg = rev.screenshot_url && rev.screenshot_url.trim().length > 5;
+        const dateObj = new Date(rev.created_at);
+        const dateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "";
+
+        return `
+          <div class="admin-review-row">
+            <div class="admin-review-thumb-col">
+              ${hasImg ? `
+                <div class="admin-review-thumb-box" onclick="openScreenshotLightbox('${rev.screenshot_url}', '${rev.customer_name}', '${rev.perfume_name}', '${encodeURIComponent(rev.comment)}')">
+                  <img src="${rev.screenshot_url}" alt="Screenshot" onerror="this.src='logo.jpg'">
+                  <span class="admin-review-zoom-icon">🔍</span>
+                </div>
+              ` : `
+                <div class="admin-review-no-thumb">
+                  <span>No Img</span>
+                </div>
+              `}
+            </div>
+
+            <div class="admin-review-info-col">
+              <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                <strong style="color:#fff; font-size:1rem;">${rev.customer_name}</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted);">${rev.city ? '📍 ' + rev.city : ''}</span>
+                <span class="admin-review-perfume-tag">🧴 ${rev.perfume_name}</span>
+                <span style="color:var(--accent-gold); font-size:0.85rem; letter-spacing:1px;">${stars}</span>
+              </div>
+              <p class="admin-review-quote">"${rev.comment}"</p>
+              <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.35rem;">
+                ${dateStr} • ${rev.is_verified ? '<span style="color:#4ade80;">✓ Verified Buyer</span>' : 'Unverified'}
+              </div>
+            </div>
+
+            <div class="admin-review-actions-col">
+              ${hasImg ? `
+                <button type="button" class="btn-view-screenshot-sm" onclick="openScreenshotLightbox('${rev.screenshot_url}', '${rev.customer_name}', '${rev.perfume_name}', '${encodeURIComponent(rev.comment)}')">
+                  📸 View
+                </button>
+              ` : ''}
+              <button type="button" class="btn-delete-prod" onclick="deleteAdminReview('${rev.id}')" title="Delete Review">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function deleteAdminReview(id) {
+      if (confirm("ඔබට මෙම Review එක ඉවත් කිරීමට අවශ්‍යද?")) {
+        await syncReviewDelete(id);
+        renderAdminReviews();
+        renderAdminStats();
+      }
+    }
+
+    function openAdminAddReviewModal() {
+      document.getElementById("adminAddReviewModal").classList.add("open");
+    }
+
+    function closeAdminAddReviewModal() {
+      document.getElementById("adminAddReviewModal").classList.remove("open");
+      document.getElementById("adminReviewForm").reset();
+      const preview = document.getElementById("adminRevScreenshotPreview");
+      if (preview) {
+        preview.src = "";
+        preview.style.display = "none";
+      }
+      document.getElementById("adminRevScreenshotBase64").value = "";
+    }
+
+    async function handleAdminReviewImageSelect(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      try {
+        const base64 = await processImageFile(file, 900, 0.85);
+        document.getElementById("adminRevScreenshotBase64").value = base64;
+        const preview = document.getElementById("adminRevScreenshotPreview");
+        if (preview) {
+          preview.src = base64;
+          preview.style.display = "block";
+        }
+      } catch (err) {
+        console.error("Error processing screenshot:", err);
+      }
+    }
+
+    function handleAdminReviewUrlInput(url) {
+      const preview = document.getElementById("adminRevScreenshotPreview");
+      if (preview && url && url.trim().length > 5) {
+        document.getElementById("adminRevScreenshotBase64").value = url.trim();
+        preview.src = url.trim();
+        preview.style.display = "block";
+      }
+    }
+
+    async function handleAdminCreateReview(e) {
+      e.preventDefault();
+      const name = document.getElementById("adminRevCustName").value.trim();
+      const city = document.getElementById("adminRevCustCity").value.trim() || "Sri Lanka";
+      const perfume = document.getElementById("adminRevPerfume").value.trim();
+      const rating = parseInt(document.getElementById("adminRevRating").value) || 5;
+      const comment = document.getElementById("adminRevComment").value.trim();
+      const screenshot = document.getElementById("adminRevScreenshotBase64").value.trim();
+
+      const newRev = {
+        id: "rev-" + Date.now(),
+        customer_name: name,
+        city: city,
+        perfume_name: perfume,
+        rating: rating,
+        comment: comment,
+        screenshot_url: screenshot,
+        is_verified: true,
+        status: "approved",
+        created_at: new Date().toISOString()
+      };
+
+      await syncReviewInsert(newRev);
+      closeAdminAddReviewModal();
+      alert("පාරිභෝගික Review එක සහ Screenshot එක සාර්ථකව ඇතුළත් කරන ලදී! (Review added successfully)");
+      renderAdminReviews();
+      renderAdminStats();
     }
 
     // Orders Filter & Management

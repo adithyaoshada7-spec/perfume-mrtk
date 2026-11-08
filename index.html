@@ -274,6 +274,42 @@
       </div>
     </section>
 
+    <!-- ========================================================
+         VERIFIED CUSTOMER REVIEWS & SCREENSHOTS SECTION
+         ======================================================== -->
+    <section class="reviews-section" id="reviewsSection">
+      <div class="reviews-section-inner">
+        <div class="reviews-header-wrap">
+          <div class="social-badge-pill">
+            <span class="social-pulse-dot" style="background:#4ade80;"></span>
+            <span>⭐ 4.9/5 RATED BY 350+ HAPPY CUSTOMERS • VERIFIED PROOF</span>
+          </div>
+          <h2 class="social-section-title">Real Reviews & <span>Customer Screenshots</span></h2>
+          <p class="social-section-desc">
+            See genuine WhatsApp feedback screenshots, unboxing confirmations, and real fragrance reactions from customers across Sri Lanka.
+          </p>
+          
+          <div class="reviews-action-bar">
+            <div class="reviews-filter-pills">
+              <button type="button" class="review-filter-btn active" onclick="setStorefrontReviewFilter('all', this)">All Reviews</button>
+              <button type="button" class="review-filter-btn" onclick="setStorefrontReviewFilter('screenshots', this)">📸 With Screenshots</button>
+              <button type="button" class="review-filter-btn" onclick="setStorefrontReviewFilter('authentic', this)">Authentic Decants</button>
+              <button type="button" class="review-filter-btn" onclick="setStorefrontReviewFilter('inspired', this)">Inspired 15ml</button>
+            </div>
+
+            <button type="button" class="btn-submit-review-cta" onclick="openAddReviewModal()">
+              <span>✍️ Submit Your Review</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Reviews Grid -->
+        <div class="reviews-grid" id="reviewsGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Modal Container for Fragrance Pyramid & Detailed View -->
@@ -371,6 +407,92 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ========================================================
+       Screenshot Lightbox Modal
+       ======================================================== -->
+  <div class="modal-overlay" id="screenshotLightboxModal" onclick="if(event.target===this) closeScreenshotLightbox()">
+    <div class="modal-window lightbox-window">
+      <button class="modal-close" onclick="closeScreenshotLightbox()" title="Close Screenshot">✕</button>
+      <div class="lightbox-img-box">
+        <img id="lightboxImg" src="" alt="Customer Screenshot Proof">
+      </div>
+      <div class="lightbox-caption-bar">
+        <div class="lightbox-title" id="lightboxTitle">Customer Proof</div>
+        <div class="lightbox-comment" id="lightboxComment"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       Customer Submit Review Modal
+       ======================================================== -->
+  <div class="modal-overlay" id="addReviewModal" onclick="if(event.target===this) closeAddReviewModal()">
+    <div class="modal-window" style="max-width: 550px; padding: 1.75rem;">
+      <button class="modal-close" onclick="closeAddReviewModal()">✕</button>
+      <div class="checkout-header" style="margin-bottom:1.25rem;">
+        <span class="checkout-badge">⭐ Share Your Scent Experience</span>
+        <h3 class="checkout-title" style="font-size:1.4rem;">Submit Your Review</h3>
+        <p class="checkout-subtitle">අපගේ සුවඳ විලවුන් පිළිබඳ ඔබගේ අවංක අදහස සහ Screenshot එකක් එක් කරන්න</p>
+      </div>
+
+      <form id="customerReviewForm" onsubmit="handleStorefrontReviewSubmit(event)">
+        <div style="display:flex; flex-direction:column; gap:0.9rem;">
+          <div class="checkout-form-grid">
+            <div class="form-group">
+              <label>Your Name (ඔබගේ නම) *</label>
+              <input type="text" id="revCustName" class="admin-input" placeholder="e.g. Kasun Perera" required>
+            </div>
+            <div class="form-group">
+              <label>City (නගරය)</label>
+              <input type="text" id="revCustCity" class="admin-input" placeholder="e.g. Colombo, Kandy">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Perfume Purchased (ඔබ ලබාගත් සුවඳ විලවුන් වර්ගය) *</label>
+            <input type="text" id="revPerfume" class="admin-input" placeholder="e.g. Creed Aventus Decant or Rouge Crystal 15ml" required>
+          </div>
+
+          <div class="form-group">
+            <label>Rating (තාරකා ගණන) *</label>
+            <select id="revRating" class="admin-input" style="font-weight:700; color:var(--accent-gold);">
+              <option value="5">⭐⭐⭐⭐⭐ (5 Stars - Exceptional)</option>
+              <option value="4">⭐⭐⭐⭐ (4 Stars - Great)</option>
+              <option value="3">⭐⭐⭐ (3 Stars - Good)</option>
+              <option value="2">⭐⭐ (2 Stars)</option>
+              <option value="1">⭐ (1 Star)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Your Review / Feedback (ඔබගේ අදහස) *</label>
+            <textarea id="revComment" class="admin-input" rows="3" placeholder="සුවඳේ පැවැත්ම, සුවඳ, ඩිලිවරි සේවාව පිළිබඳ ඔබගේ අදහස ලියන්න..." required style="resize:vertical;"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Attach Screenshot / Photo (WhatsApp Chat, Delivery Photo, Unboxing) 📸</label>
+            <input type="hidden" id="revScreenshotBase64">
+            <div class="image-upload-wrapper" style="padding:0.75rem;">
+              <label class="image-upload-btn-label" style="display:inline-flex; width:fit-content;">
+                📁 <span>Choose Screenshot from Device</span>
+                <input type="file" class="image-upload-input-hidden" accept="image/*" onchange="handleCustomerReviewImage(this)">
+              </label>
+              <img id="reviewScreenshotPreview" src="" alt="Screenshot Preview" style="display:none; max-height:140px; border-radius:6px; object-fit:contain; border:1px solid var(--border-glass); margin-top:0.5rem;">
+              <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.25rem;">
+                Optional: Upload your WhatsApp chat feedback screenshot or photo
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:1.25rem; display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="admin-btn-secondary" onclick="closeAddReviewModal()">Cancel</button>
+          <button type="submit" class="admin-btn-primary"><span>Submit Review ✨</span></button>
+        </div>
+      </form>
     </div>
   </div>
 
