@@ -829,39 +829,18 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
         const isAuthentic = p.category === "authentic";
         const isInStock = p.in_stock !== false;
 
-        let priceInputsHtml = "";
-        if (isAuthentic) {
-          const p5 = p.sizes["5ml Decant"]?.price || 0;
-          const p10 = p.sizes["10ml Decant"]?.price || 0;
-          priceInputsHtml = `
+        // Dynamic price inputs for all configured sizes/ml
+        const sizeKeys = Object.keys(p.sizes || {});
+        let priceInputsHtml = sizeKeys.map((sKey) => {
+          const sData = p.sizes[sKey];
+          const price = typeof sData === 'object' ? (sData.price || 0) : (parseInt(sData) || 0);
+          return `
             <div class="inline-price-group">
-              <label>5ml (Rs.):</label>
-              <input type="number" class="admin-price-input" id="price-5ml-${p.id}" value="${p5}">
-            </div>
-            <div class="inline-price-group">
-              <label>10ml (Rs.):</label>
-              <input type="number" class="admin-price-input" id="price-10ml-${p.id}" value="${p10}">
+              <label title="${sKey}">${sKey}:</label>
+              <input type="number" class="admin-price-input" data-prod-id="${p.id}" data-size-name="${encodeURIComponent(sKey)}" value="${price}">
             </div>
           `;
-        } else {
-          const pSingle = p.sizes["Single 15ml"]?.price || 0;
-          const p3 = p.sizes["3-Pack (3x15ml)"]?.price || 0;
-          const p5 = p.sizes["5-Pack (5x15ml)"]?.price || 0;
-          priceInputsHtml = `
-            <div class="inline-price-group">
-              <label>15ml (Rs.):</label>
-              <input type="number" class="admin-price-input" id="price-single-${p.id}" value="${pSingle}">
-            </div>
-            <div class="inline-price-group">
-              <label>3-Pack (Rs.):</label>
-              <input type="number" class="admin-price-input" id="price-3pack-${p.id}" value="${p3}">
-            </div>
-            <div class="inline-price-group">
-              <label>5-Pack (Rs.):</label>
-              <input type="number" class="admin-price-input" id="price-5pack-${p.id}" value="${p5}">
-            </div>
-          `;
-        }
+        }).join('');
 
         return `
           <div class="admin-product-row ${!isInStock ? 'out-of-stock-row' : ''}">
@@ -878,12 +857,12 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
             </div>
 
             <div class="admin-prod-pricing-col">
-              ${priceInputsHtml}
+              ${priceInputsHtml || '<span style="font-size:0.75rem; color:var(--text-muted);">No sizes configured</span>'}
               <button type="button" class="admin-btn-save-sm" onclick="saveInlinePrice('${p.id}')">💾 Save</button>
             </div>
 
             <div class="admin-prod-actions-col">
-              <button type="button" class="btn-edit-prod" title="Edit Perfume Name, Image & Details" onclick="openEditProductModal('${p.id}')">
+              <button type="button" class="btn-edit-prod" title="Edit Perfume Name, ml Sizes, Image & Details" onclick="openEditProductModal('${p.id}')">
                 ✏️ Edit
               </button>
 
@@ -902,32 +881,23 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       }).join('');
     }
 
-    // 4. Save Inline Prices
+    // 4. Save Inline Prices (Dynamically updates any ml size)
     async function saveInlinePrice(productId) {
       const product = getActiveCatalog().find(p => p.id === productId);
       if (!product) return;
 
-      if (product.category === "authentic") {
-        const val5 = parseInt(document.getElementById(`price-5ml-${productId}`).value) || 0;
-        const val10 = parseInt(document.getElementById(`price-10ml-${productId}`).value) || 0;
-        product.sizes["5ml Decant"].price = val5;
-        product.sizes["5ml Decant"].label = `Rs. ${val5.toLocaleString()}`;
-        product.sizes["10ml Decant"].price = val10;
-        product.sizes["10ml Decant"].label = `Rs. ${val10.toLocaleString()}`;
-      } else {
-        const valSingle = parseInt(document.getElementById(`price-single-${productId}`).value) || 0;
-        const val3 = parseInt(document.getElementById(`price-3pack-${productId}`).value) || 0;
-        const val5 = parseInt(document.getElementById(`price-5pack-${productId}`).value) || 0;
-        product.sizes["Single 15ml"].price = valSingle;
-        product.sizes["Single 15ml"].label = `Rs. ${valSingle.toLocaleString()}`;
-        product.sizes["3-Pack (3x15ml)"].price = val3;
-        product.sizes["3-Pack (3x15ml)"].label = `Rs. ${val3.toLocaleString()}`;
-        product.sizes["5-Pack (5x15ml)"].price = val5;
-        product.sizes["5-Pack (5x15ml)"].label = `Rs. ${val5.toLocaleString()}`;
-      }
+      const inputs = document.querySelectorAll(`input.admin-price-input[data-prod-id="${productId}"]`);
+      inputs.forEach(input => {
+        const rawName = decodeURIComponent(input.getAttribute("data-size-name"));
+        const newPrice = parseInt(input.value) || 0;
+        if (product.sizes && product.sizes[rawName]) {
+          product.sizes[rawName].price = newPrice;
+          product.sizes[rawName].label = `Rs. ${newPrice.toLocaleString()}`;
+        }
+      });
 
       await syncProductUpdate(product);
-      alert(`මිල සාර්ථකව යාවත්කාලීන විය! (Price updated for ${product.name})`);
+      alert(`මිල සාර්ථකව යාවත්කාලීන විය! (Prices updated for ${product.name})`);
       renderAdminProducts();
       renderAdminStats();
     }
@@ -1061,7 +1031,134 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
     }
 
     // ========================================================
-    // 8. ADD PRODUCT MODAL LOGIC
+    // 8. DYNAMIC SIZES & ML MANAGER (EDITABLE BOTTLE SIZES & PRICING)
+    // ========================================================
+    let addModalSizes = [];
+    let editModalSizes = [];
+
+    function renderSizesEditor(mode) {
+      const isAdd = mode === 'add';
+      const container = document.getElementById(isAdd ? 'priceFieldsContainer' : 'editPriceFieldsContainer');
+      if (!container) return;
+
+      const sizes = isAdd ? addModalSizes : editModalSizes;
+
+      container.innerHTML = `
+        <div class="admin-sizes-manager">
+          <div class="admin-sizes-header">
+            <div>
+              <div class="admin-sizes-title">🍾 Bottle / Decant Sizes & ml Pricing (මිල සහ ml ප්‍රමාණයන්) *</div>
+              <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                ඔබට අවශ්‍ය පරිදි ml ප්‍රමාණය (Name) සහ මිල (Price) වෙනස් කරන්න, අලුත් ml ප්‍රමාණ එක් කරන්න.
+              </div>
+            </div>
+            <button type="button" class="btn-add-size-pill" onclick="addCustomSizeRow('${mode}')">+ Add Size / ml</button>
+          </div>
+
+          <div class="admin-size-presets">
+            <span style="font-size:0.68rem; color:var(--text-muted); align-self:center;">Quick ml Presets:</span>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '2ml Decant', 1500, false)">+ 2ml</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '5ml Decant', 3200, false)">+ 5ml</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '10ml Decant', 5800, false)">+ 10ml</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', 'Single 15ml', 1250, false)">+ 15ml</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '30ml Bottle', 2800, false)">+ 30ml</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '50ml Bottle', 4500, true)">+ 50ml</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '100ml Bottle', 8500, true)">+ 100ml</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '3-Pack (3x15ml)', 3450, true)">+ 3-Pack</button>
+            <button type="button" class="btn-size-preset" onclick="applySizePreset('${mode}', '5-Pack (5x15ml)', 5250, true)">+ 5-Pack</button>
+          </div>
+
+          <div class="admin-sizes-list">
+            ${sizes.map((s, idx) => `
+              <div class="admin-size-row">
+                <div style="display:flex; flex-direction:column; gap:0.2rem;">
+                  <label style="font-size:0.68rem; color:var(--text-muted);">Size / ml Name (e.g. 15ml, 30ml, 50ml Decant):</label>
+                  <input 
+                    type="text" 
+                    class="admin-input-sm size-name-input" 
+                    value="${s.name.replace(/"/g, '&quot;')}" 
+                    placeholder="e.g. 15ml Bottle, 50ml, 10ml Decant"
+                    oninput="updateSizeProp('${mode}', ${idx}, 'name', this.value)"
+                    required
+                  >
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.2rem;">
+                  <label style="font-size:0.68rem; color:var(--text-muted);">Price in LKR (Rs.):</label>
+                  <input 
+                    type="number" 
+                    class="admin-input-sm size-price-input" 
+                    value="${s.price}" 
+                    placeholder="e.g. 1250"
+                    oninput="updateSizeProp('${mode}', ${idx}, 'price', parseInt(this.value) || 0)"
+                    required
+                  >
+                </div>
+                <div style="display:flex; align-items:center; margin-top:1.1rem;">
+                  <label class="size-fd-label" title="Tick if this size includes Free Delivery">
+                    <input type="checkbox" ${s.freeDelivery ? 'checked' : ''} onchange="updateSizeProp('${mode}', ${idx}, 'freeDelivery', this.checked)">
+                    <span>Free Delivery</span>
+                  </label>
+                </div>
+                <div style="margin-top:1.1rem;">
+                  <button type="button" class="btn-delete-size" onclick="deleteSizeRow('${mode}', ${idx})" title="Delete this size">🗑️</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <button type="button" class="btn-add-size-row" onclick="addCustomSizeRow('${mode}')">
+            <span>+ Add Another Size / ml Option</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function updateSizeProp(mode, idx, prop, val) {
+      const list = mode === 'add' ? addModalSizes : editModalSizes;
+      if (list[idx]) {
+        list[idx][prop] = val;
+      }
+    }
+
+    function deleteSizeRow(mode, idx) {
+      const list = mode === 'add' ? addModalSizes : editModalSizes;
+      if (list.length <= 1) {
+        alert("අවම වශයෙන් එක් size / ml ප්‍රමාණයක් හෝ තිබිය යුතුය. (At least 1 size is required)");
+        return;
+      }
+      list.splice(idx, 1);
+      renderSizesEditor(mode);
+    }
+
+    function addCustomSizeRow(mode) {
+      const list = mode === 'add' ? addModalSizes : editModalSizes;
+      list.push({
+        name: `${(list.length + 1) * 10}ml Bottle`,
+        price: 2500,
+        freeDelivery: false,
+        desc: ""
+      });
+      renderSizesEditor(mode);
+    }
+
+    function applySizePreset(mode, name, price, freeDelivery) {
+      const list = mode === 'add' ? addModalSizes : editModalSizes;
+      const existing = list.find(s => s.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        alert(`"${name}" දැනටමත් ඇතුළත් කර ඇත. (Size already exists in the list)`);
+        return;
+      }
+      list.push({
+        name,
+        price,
+        freeDelivery: !!freeDelivery,
+        desc: name
+      });
+      renderSizesEditor(mode);
+    }
+
+    // ========================================================
+    // 9. ADD PRODUCT MODAL LOGIC
     // ========================================================
     function openAddProductModal() {
       addModalImages = [];
@@ -1074,50 +1171,54 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       document.getElementById("addProductModal").classList.remove("open");
       document.getElementById("newPerfumeForm").reset();
       addModalImages = [];
+      addModalSizes = [];
     }
 
     function toggleCategoryPriceInputs() {
       const cat = document.getElementById("newProdCategory").value;
-      const container = document.getElementById("priceFieldsContainer");
       if (cat === "authentic") {
-        container.innerHTML = `
-          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Authentic Decants Pricing:</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">5ml Decant Price (Rs.) *</label>
-              <input type="number" id="newPrice5" class="admin-input" placeholder="3200" required>
-            </div>
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">10ml Decant Price (Rs.) *</label>
-              <input type="number" id="newPrice10" class="admin-input" placeholder="5800" required>
-            </div>
-          </div>
-        `;
+        addModalSizes = [
+          { name: "5ml Decant", price: 3200, freeDelivery: false, desc: "~70 Sprays" },
+          { name: "10ml Decant", price: 5800, freeDelivery: false, desc: "~140 Sprays" }
+        ];
       } else {
-        container.innerHTML = `
-          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Inspired 15ml Packages Pricing:</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">Single 15ml (Rs.) *</label>
-              <input type="number" id="newPriceSingle" class="admin-input" placeholder="1250" required>
-            </div>
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">3-Pack (Rs.) *</label>
-              <input type="number" id="newPrice3" class="admin-input" placeholder="3450" required>
-            </div>
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">5-Pack (Rs.) *</label>
-              <input type="number" id="newPrice5Pack" class="admin-input" placeholder="5250" required>
-            </div>
-          </div>
-        `;
+        addModalSizes = [
+          { name: "Single 15ml", price: 1250, freeDelivery: false, desc: "1x 15ml Bottle" },
+          { name: "3-Pack (3x15ml)", price: 3450, freeDelivery: true, desc: "3x 15ml Set" },
+          { name: "5-Pack (5x15ml)", price: 5250, freeDelivery: true, desc: "5x 15ml Full Set" }
+        ];
       }
+      renderSizesEditor('add');
     }
 
     async function handleCreateProduct(e) {
       e.preventDefault();
       if (addModalImages.length === 0) {
         alert("කරුණාකර අවම වශයෙන් එක් ඡායාරූපයක් හෝ තෝරන්න. (Please add at least 1 image)");
+        return;
+      }
+
+      if (addModalSizes.length === 0) {
+        alert("කරුණාකර අවම වශයෙන් එක් size / ml ප්‍රමාණයක් හෝ ඇතුළත් කරන්න. (Please add at least 1 size/ml)");
+        return;
+      }
+
+      let sizes = {};
+      addModalSizes.forEach(s => {
+        const trimmed = (s.name || '').trim();
+        if (trimmed) {
+          sizes[trimmed] = {
+            price: parseInt(s.price) || 0,
+            label: `Rs. ${(parseInt(s.price) || 0).toLocaleString()}`,
+            freeDelivery: !!s.freeDelivery,
+            desc: s.desc || trimmed,
+            sprayCount: s.name.toLowerCase().includes("decant") ? `~${(parseInt(s.name) || 5) * 14} Sprays` : undefined
+          };
+        }
+      });
+
+      if (Object.keys(sizes).length === 0) {
+        alert("කරුණාකර වලංගු size / ml නමක් සහ මිලක් ඇතුළත් කරන්න.");
         return;
       }
 
@@ -1129,25 +1230,6 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       const notes = document.getElementById("newProdNotes").value.trim() || "Fragrant accords";
 
       const id = "prod-" + Date.now();
-      let sizes = {};
-
-      if (category === "authentic") {
-        const p5 = parseInt(document.getElementById("newPrice5").value) || 0;
-        const p10 = parseInt(document.getElementById("newPrice10").value) || 0;
-        sizes = {
-          "5ml Decant": { price: p5, label: `Rs. ${p5.toLocaleString()}`, sprayCount: "~70 Sprays" },
-          "10ml Decant": { price: p10, label: `Rs. ${p10.toLocaleString()}`, sprayCount: "~140 Sprays" }
-        };
-      } else {
-        const pSingle = parseInt(document.getElementById("newPriceSingle").value) || 0;
-        const p3 = parseInt(document.getElementById("newPrice3").value) || 0;
-        const p5 = parseInt(document.getElementById("newPrice5Pack").value) || 0;
-        sizes = {
-          "Single 15ml": { price: pSingle, label: `Rs. ${pSingle.toLocaleString()}`, freeDelivery: false, desc: "1x 15ml Bottle" },
-          "3-Pack (3x15ml)": { price: p3, label: `Rs. ${p3.toLocaleString()}`, freeDelivery: true, desc: "3x 15ml Set" },
-          "5-Pack (5x15ml)": { price: p5, label: `Rs. ${p5.toLocaleString()}`, freeDelivery: true, desc: "5x 15ml Full Set" }
-        };
-      }
 
       const newProd = {
         id,
@@ -1157,15 +1239,15 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
         gender,
         image: addModalImages[0],
         images: [...addModalImages],
-        badge: category === "authentic" ? "100% Authentic Decant" : "Inspired • 15ml Luxury",
+        badge: category === "authentic" ? "100% Authentic Decant" : "Inspired • Luxury Fragrance",
         accords: ["Luxury Scent", "Refined Aroma"],
         topNotes: notes,
         heartNotes: notes,
         baseNotes: notes,
         longevity,
-        description: `${name} by ${brand}. Available in decants/luxury sprays.`,
+        description: `${name} by ${brand}. Available in various bottle and decant sizes.`,
         sizes,
-        defaultSize: category === "authentic" ? "10ml Decant" : "3-Pack (3x15ml)",
+        defaultSize: Object.keys(sizes)[0],
         in_stock: true
       };
 
@@ -1177,7 +1259,7 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
     }
 
     // ========================================================
-    // 9. CLIENT-SIDE IMAGE COMPRESSION
+    // 10. CLIENT-SIDE IMAGE COMPRESSION
     // ========================================================
     function processImageFile(file, maxWidth = 800, quality = 0.82) {
       return new Promise((resolve, reject) => {
@@ -1212,7 +1294,7 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
     }
 
     // ========================================================
-    // 10. EDIT PERFUME MODAL LOGIC (Name, Brand, Notes, Up to 6 Images, Prices)
+    // 11. EDIT PERFUME MODAL LOGIC (Name, Brand, Notes, Editable ml Sizes, Images)
     // ========================================================
     function openEditProductModal(productId) {
       const product = getActiveCatalog().find(p => p.id === productId);
@@ -1222,7 +1304,7 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       document.getElementById("editProdName").value = product.name;
       document.getElementById("editProdBrand").value = product.brand;
       document.getElementById("editProdCategory").value = product.category;
-      document.getElementById("editProdCategoryDisplay").value = product.category === "authentic" ? "Authentic Decant" : "Inspired 15ml";
+      document.getElementById("editProdCategoryDisplay").value = product.category === "authentic" ? "Authentic Decant" : "Inspired Perfume";
       document.getElementById("editProdGender").value = product.gender || "unisex";
       document.getElementById("editProdLongevity").value = product.longevity || "14h+ Lasting";
       document.getElementById("editProdNotes").value = product.topNotes || (product.accords ? product.accords.join(', ') : "");
@@ -1233,45 +1315,19 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
         : (product.image ? [product.image] : []);
       renderMultiImageGrid('edit');
 
-      const priceContainer = document.getElementById("editPriceFieldsContainer");
-      if (product.category === "authentic") {
-        const p5 = product.sizes?.["5ml Decant"]?.price || 0;
-        const p10 = product.sizes?.["10ml Decant"]?.price || 0;
-        priceContainer.innerHTML = `
-          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Authentic Decants Pricing:</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">5ml Decant Price (Rs.) *</label>
-              <input type="number" id="editPrice5" class="admin-input" value="${p5}" required>
-            </div>
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">10ml Decant Price (Rs.) *</label>
-              <input type="number" id="editPrice10" class="admin-input" value="${p10}" required>
-            </div>
-          </div>
-        `;
-      } else {
-        const pSingle = product.sizes?.["Single 15ml"]?.price || 0;
-        const p3 = product.sizes?.["3-Pack (3x15ml)"]?.price || 0;
-        const p5 = product.sizes?.["5-Pack (5x15ml)"]?.price || 0;
-        priceContainer.innerHTML = `
-          <div style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; margin-bottom:0.5rem;">Inspired 15ml Packages Pricing:</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">Single 15ml (Rs.) *</label>
-              <input type="number" id="editPriceSingle" class="admin-input" value="${pSingle}" required>
-            </div>
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">3-Pack (Rs.) *</label>
-              <input type="number" id="editPrice3" class="admin-input" value="${p3}" required>
-            </div>
-            <div>
-              <label style="font-size:0.7rem; color:var(--text-muted);">5-Pack (Rs.) *</label>
-              <input type="number" id="editPrice5Pack" class="admin-input" value="${p5}" required>
-            </div>
-          </div>
-        `;
+      // Populate editable sizes and ml amounts
+      editModalSizes = Object.entries(product.sizes || {}).map(([sName, sData]) => ({
+        name: sName,
+        price: typeof sData === 'object' ? (sData.price || 0) : (parseInt(sData) || 0),
+        freeDelivery: typeof sData === 'object' ? !!sData.freeDelivery : false,
+        desc: typeof sData === 'object' ? (sData.desc || sData.sprayCount || '') : ''
+      }));
+
+      if (editModalSizes.length === 0) {
+        editModalSizes = [{ name: "15ml Bottle", price: 1250, freeDelivery: false, desc: "" }];
       }
+
+      renderSizesEditor('edit');
 
       document.getElementById("editProductModal").classList.add("open");
     }
@@ -1291,6 +1347,30 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
         return;
       }
 
+      if (editModalSizes.length === 0) {
+        alert("කරුණාකර අවම වශයෙන් එක් size / ml ප්‍රමාණයක් හෝ ඇතුළත් කරන්න. (Please add at least 1 size/ml)");
+        return;
+      }
+
+      let updatedSizes = {};
+      editModalSizes.forEach(s => {
+        const trimmed = (s.name || '').trim();
+        if (trimmed) {
+          updatedSizes[trimmed] = {
+            price: parseInt(s.price) || 0,
+            label: `Rs. ${(parseInt(s.price) || 0).toLocaleString()}`,
+            freeDelivery: !!s.freeDelivery,
+            desc: s.desc || trimmed,
+            sprayCount: s.name.toLowerCase().includes("decant") ? `~${(parseInt(s.name) || 5) * 14} Sprays` : undefined
+          };
+        }
+      });
+
+      if (Object.keys(updatedSizes).length === 0) {
+        alert("කරුණාකර වලංගු size / ml නමක් සහ මිලක් ඇතුළත් කරන්න.");
+        return;
+      }
+
       const name = document.getElementById("editProdName").value.trim();
       const brand = document.getElementById("editProdBrand").value.trim();
       const gender = document.getElementById("editProdGender").value;
@@ -1303,30 +1383,18 @@ Piyora Luxury Fragrances වෙතින් ඔබ තැබූ ඇණවුම 
       product.longevity = longevity;
       product.image = editModalImages[0];
       product.images = [...editModalImages];
+      product.sizes = updatedSizes;
+      if (!product.sizes[product.defaultSize]) {
+        product.defaultSize = Object.keys(updatedSizes)[0];
+      }
       product.topNotes = notes;
       product.heartNotes = notes;
       product.baseNotes = notes;
-      product.description = `${name} by ${brand}. Available in decants/luxury sprays.`;
-
-      if (product.category === "authentic") {
-        const p5 = parseInt(document.getElementById("editPrice5").value) || 0;
-        const p10 = parseInt(document.getElementById("editPrice10").value) || 0;
-        if (!product.sizes) product.sizes = {};
-        product.sizes["5ml Decant"] = { price: p5, label: `Rs. ${p5.toLocaleString()}`, sprayCount: "~70 Sprays" };
-        product.sizes["10ml Decant"] = { price: p10, label: `Rs. ${p10.toLocaleString()}`, sprayCount: "~140 Sprays" };
-      } else {
-        const pSingle = parseInt(document.getElementById("editPriceSingle").value) || 0;
-        const p3 = parseInt(document.getElementById("editPrice3").value) || 0;
-        const p5 = parseInt(document.getElementById("editPrice5Pack").value) || 0;
-        if (!product.sizes) product.sizes = {};
-        product.sizes["Single 15ml"] = { price: pSingle, label: `Rs. ${pSingle.toLocaleString()}`, freeDelivery: false, desc: "1x 15ml Bottle" };
-        product.sizes["3-Pack (3x15ml)"] = { price: p3, label: `Rs. ${p3.toLocaleString()}`, freeDelivery: true, desc: "3x 15ml Set" };
-        product.sizes["5-Pack (5x15ml)"] = { price: p5, label: `Rs. ${p5.toLocaleString()}`, freeDelivery: true, desc: "5x 15ml Full Set" };
-      }
+      product.description = `${name} by ${brand}. Available in various bottle and decant sizes.`;
 
       await syncProductUpdate(product);
       closeEditProductModal();
-      alert(`සුවඳ විලවුන් විස්තර සාර්ථකව යාවත්කාලීන විය! (${product.name} updated successfully)`);
+      alert(`සුවඳ විලවුන් විස්තර සහ ml ප්‍රමාණයන් සාර්ථකව යාවත්කාලීන විය! (${product.name} updated successfully)`);
       renderAdminProducts();
       renderAdminStats();
     }
