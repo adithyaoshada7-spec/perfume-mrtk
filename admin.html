@@ -976,6 +976,19 @@
                 <div style="font-size:0.75rem; color:#4ade80; font-weight:600;">FREE ISLANDWIDE DELIVERY</div>
               </div>
             `;
+          } else if (order.items.type === 'cart' && Array.isArray(order.items.cartItems)) {
+            const list = order.items.cartItems.map(ci => `
+              <div style="font-size:0.82rem; color:#e2e8f0; margin:2px 0;">
+                • <strong>${ci.name}</strong> (${ci.size}) × ${ci.quantity} — <span style="color:var(--accent-gold);">Rs. ${(ci.price * ci.quantity).toLocaleString()}</span>
+              </div>
+            `).join('');
+            itemHtml = `
+              <div class="order-item-desc">
+                <div style="font-weight:600; color:#fff; font-size:0.95rem;">🛍️ Cart Order (${order.items.cartItems.length} perfumes)</div>
+                <div style="margin: 0.35rem 0;">${list}</div>
+                <div style="font-size:0.75rem; color:#4ade80; font-weight:600;">FREE ISLANDWIDE DELIVERY</div>
+              </div>
+            `;
           } else {
             itemHtml = `<div class="order-item-desc">Perfume item</div>`;
           }
@@ -1079,9 +1092,13 @@
         statusMsg = "ඔබගේ ඇණවුම අප වෙත ලැබී ඇති අතර ඉතා ඉක්මනින්ම ඔබ අමතා තහවුරු කරනු ඇත.";
       }
 
-      const itemDesc = order.items && order.items.type === 'single'
-        ? `${order.items.name} (${order.items.size})`
-        : (order.items?.packTitle || "Perfume Pack");
+      let itemDesc = "Perfume Order";
+      if (order.items) {
+        if (order.items.type === 'single') itemDesc = `${order.items.name} (${order.items.size})`;
+        else if (order.items.type === 'cart' && Array.isArray(order.items.cartItems)) {
+          itemDesc = order.items.cartItems.map(ci => `${ci.name} (${ci.size}) x${ci.quantity}`).join(', ');
+        } else if (order.items.packTitle) itemDesc = order.items.packTitle;
+      }
 
       const text = 
 `👋 ආයුබෝවන් *${order.customer_name}*,

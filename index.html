@@ -35,6 +35,13 @@
         </div>
       </a>
 
+      <!-- Header Cart Pill Button -->
+      <button type="button" class="nav-cart-btn" onclick="openCartDrawer()" title="View Shopping Cart">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <span class="nav-cart-text">Cart</span>
+        <span class="nav-cart-badge" id="navCartCount">0</span>
+      </button>
+
       
     </div>
   </header>
@@ -501,6 +508,77 @@
     <span class="client-dot"></span>
     <span>Connected to WhatsApp: <strong>+94 78 662 3081</strong></span>
   </div>
+
+  
+  <!-- ========================================================
+       Floating Cart Pill (Bottom Right Corner)
+       ======================================================== -->
+  <div class="floating-cart-pill" id="floatingCartPill" onclick="openCartDrawer()" style="display:none;">
+    <div class="floating-cart-left">
+      <div class="floating-cart-icon-wrap">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <span class="floating-cart-badge" id="floatingCartCount">0</span>
+      </div>
+      <div class="floating-cart-info">
+        <span class="floating-cart-label">Shopping Cart</span>
+        <span class="floating-cart-sum" id="floatingCartTotal">Rs. 0</span>
+      </div>
+    </div>
+    <span class="floating-cart-cta-btn">View Cart →</span>
+  </div>
+
+  <!-- ========================================================
+       Shopping Cart Slide-Over Drawer
+       ======================================================== -->
+  <div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="if(event.target===this) closeCartDrawer()">
+    <div class="cart-drawer-window">
+      <div class="cart-drawer-header">
+        <div class="cart-drawer-title-wrap">
+          <svg width="22" height="22" fill="none" stroke="var(--accent-gold)" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          <h3>Shopping Cart</h3>
+          <span class="cart-drawer-count" id="cartDrawerCount">(0 items)</span>
+        </div>
+        <button type="button" class="cart-drawer-close" onclick="closeCartDrawer()" title="Close cart">✕</button>
+      </div>
+
+      <div class="cart-delivery-perk-bar" id="cartDeliveryPerkBar">
+        <span id="cartPerkText">✨ <strong>FREE Islandwide Delivery</strong> on any 3 or more perfumes!</span>
+      </div>
+
+      <div class="cart-drawer-body" id="cartDrawerBody">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+
+      <div class="cart-drawer-footer" id="cartDrawerFooter">
+        <div class="cart-subtotal-row">
+          <span>Items Total</span>
+          <span class="cart-subtotal-val" id="cartSubtotalVal">Rs. 0</span>
+        </div>
+        <div class="cart-delivery-row">
+          <span>Delivery</span>
+          <span class="cart-delivery-val" id="cartDeliveryVal" style="color:#4ade80;">FREE 🚚</span>
+        </div>
+        <div class="cart-total-row">
+          <span>Total (Cash on Delivery)</span>
+          <span class="cart-total-val" id="cartTotalVal">Rs. 0</span>
+        </div>
+
+        <div class="cart-drawer-actions">
+          <button type="button" class="btn-cart-checkout" onclick="proceedCartToCheckout()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            <span>Proceed to Checkout (COD)</span>
+          </button>
+          <button type="button" class="btn-cart-wa" onclick="checkoutCartViaWhatsApp()">
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+            <span>Order Cart via WhatsApp</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart Notification Toast -->
+  <div id="cartToast" class="cart-toast"></div>
 
   <!-- Footer -->
   <footer class="site-footer">

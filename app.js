@@ -1,3 +1,275 @@
+
+// ========================================================
+// SHOPPING CART ENGINE
+// ========================================================
+let PIYORA_CART = [];
+
+function getCart() {
+  if (PIYORA_CART.length === 0) {
+    try {
+      const saved = localStorage.getItem("piyora_cart");
+      if (saved) PIYORA_CART = JSON.parse(saved);
+    } catch (e) {
+      PIYORA_CART = [];
+    }
+  }
+  return PIYORA_CART;
+}
+
+function saveCart(cart) {
+  PIYORA_CART = cart;
+  localStorage.setItem("piyora_cart", JSON.stringify(cart));
+  updateCartUI();
+}
+
+function addToCart(productId, sizeKey) {
+  const product = getActiveCatalog().find(p => p.id === productId);
+  if (!product) return;
+
+  const chosenSize = sizeKey || cardStates[productId]?.selectedSize || Object.keys(product.sizes)[0];
+  const sizeData = product.sizes[chosenSize] || Object.values(product.sizes)[0];
+  if (!sizeData) return;
+
+  const cart = getCart();
+  const cartItemId = `${product.id}_${chosenSize}`;
+  const existingIndex = cart.findIndex(item => item.id === cartItemId);
+
+  if (existingIndex > -1) {
+    cart[existingIndex].quantity += 1;
+  } else {
+    cart.push({
+      id: cartItemId,
+      productId: product.id,
+      name: product.name,
+      brand: product.brand,
+      image: product.image,
+      size: chosenSize,
+      price: sizeData.price,
+      priceLabel: sizeData.label,
+      freeDelivery: !!sizeData.freeDelivery,
+      quantity: 1
+    });
+  }
+
+  saveCart(cart);
+
+  // Button visual feedback
+  const btn = document.getElementById(`cart-btn-${productId}`);
+  if (btn) {
+    btn.classList.add("added");
+    const originalText = btn.innerHTML;
+    btn.innerHTML = `✓ Added!`;
+    setTimeout(() => {
+      btn.classList.remove("added");
+      btn.innerHTML = originalText;
+    }, 1200);
+  }
+
+  const modalBtn = document.getElementById("modal-cart-btn");
+  if (modalBtn) {
+    modalBtn.classList.add("added");
+    modalBtn.innerHTML = `✓ Added to Cart!`;
+    setTimeout(() => {
+      modalBtn.classList.remove("added");
+      modalBtn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg> <span>Add to Cart</span>`;
+    }, 1200);
+  }
+
+  showCartToast(`🛍️ Added ${product.name} (${chosenSize}) to Cart!`);
+}
+
+function removeFromCart(cartItemId) {
+  const cart = getCart().filter(item => item.id !== cartItemId);
+  saveCart(cart);
+}
+
+function updateCartQty(cartItemId, delta) {
+  const cart = getCart();
+  const item = cart.find(i => i.id === cartItemId);
+  if (!item) return;
+
+  item.quantity += delta;
+  if (item.quantity <= 0) {
+    removeFromCart(cartItemId);
+  } else {
+    saveCart(cart);
+  }
+}
+
+function clearCart() {
+  PIYORA_CART = [];
+  localStorage.removeItem("piyora_cart");
+  updateCartUI();
+}
+
+function showCartToast(msg) {
+  const toast = document.getElementById("cartToast");
+  if (!toast) return;
+  toast.innerHTML = msg;
+  toast.classList.add("show");
+  setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2500);
+}
+
+function updateCartUI() {
+  const cart = getCart();
+  const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  // Nav Cart Button badge
+  const navBadge = document.getElementById("navCartCount");
+  if (navBadge) navBadge.textContent = totalCount;
+
+  // Floating Cart Pill
+  const pill = document.getElementById("floatingCartPill");
+  const pillCount = document.getElementById("floatingCartCount");
+  const pillTotal = document.getElementById("floatingCartTotal");
+
+  if (pill) {
+    if (totalCount > 0) {
+      pill.style.display = "flex";
+      if (pillCount) pillCount.textContent = totalCount;
+      if (pillTotal) pillTotal.textContent = `Rs. ${subtotal.toLocaleString()}`;
+    } else {
+      pill.style.display = "none";
+    }
+  }
+
+  renderCartDrawer();
+}
+
+function renderCartDrawer() {
+  const cart = getCart();
+  const body = document.getElementById("cartDrawerBody");
+  const countEl = document.getElementById("cartDrawerCount");
+  const subtotalEl = document.getElementById("cartSubtotalVal");
+  const deliveryEl = document.getElementById("cartDeliveryVal");
+  const totalEl = document.getElementById("cartTotalVal");
+  const perkText = document.getElementById("cartPerkText");
+  const footer = document.getElementById("cartDrawerFooter");
+
+  const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  if (countEl) countEl.textContent = `(${totalCount} ${totalCount === 1 ? 'item' : 'items'})`;
+
+  if (!body) return;
+
+  if (cart.length === 0) {
+    body.innerHTML = `
+      <div class="cart-empty-box">
+        <div class="cart-empty-icon">🛍️</div>
+        <div class="cart-empty-title">Your Cart is Empty</div>
+        <p class="cart-empty-desc">Explore our authentic luxury decants and French-oil inspired perfumes!</p>
+        <button type="button" class="btn-empty-shop" onclick="closeCartDrawer()">Start Shopping</button>
+      </div>
+    `;
+    if (footer) footer.style.display = "none";
+    return;
+  }
+
+  if (footer) footer.style.display = "flex";
+
+  body.innerHTML = cart.map(item => `
+    <div class="cart-item-card">
+      <img src="${item.image}" alt="${item.name}" class="cart-item-thumb" onerror="this.src='logo.jpg'">
+      <div class="cart-item-details">
+        <div>
+          <div class="cart-item-name">${item.name}</div>
+          <div class="cart-item-brand-size">${item.brand} • <span class="cart-item-size-badge">${item.size}</span></div>
+        </div>
+        <div class="cart-item-bottom">
+          <div class="cart-item-price">Rs. ${(item.price * item.quantity).toLocaleString()}</div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div class="cart-qty-stepper">
+              <button type="button" class="cart-qty-btn" onclick="updateCartQty('${item.id}', -1)" title="Decrease">−</button>
+              <span class="cart-qty-val">${item.quantity}</span>
+              <button type="button" class="cart-qty-btn" onclick="updateCartQty('${item.id}', 1)" title="Increase">+</button>
+            </div>
+            <button type="button" class="cart-item-remove" onclick="removeFromCart('${item.id}')" title="Remove item">🗑️</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotal.toLocaleString()}`;
+  if (totalEl) totalEl.textContent = `Rs. ${subtotal.toLocaleString()}`;
+  if (deliveryEl) deliveryEl.textContent = "FREE 🚚";
+
+  if (perkText) {
+    if (totalCount >= 3) {
+      perkText.innerHTML = `🎉 <strong>CONGRATULATIONS!</strong> You qualified for <strong>FREE ISLANDWIDE DELIVERY</strong>!`;
+    } else {
+      const remaining = 3 - totalCount;
+      perkText.innerHTML = `✨ Add <strong>${remaining} more ${remaining === 1 ? 'perfume' : 'perfumes'}</strong> for <strong>FREE Islandwide Delivery</strong>!`;
+    }
+  }
+}
+
+function openCartDrawer() {
+  updateCartUI();
+  const overlay = document.getElementById("cartDrawerOverlay");
+  if (overlay) overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeCartDrawer() {
+  const overlay = document.getElementById("cartDrawerOverlay");
+  if (overlay) overlay.classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function proceedCartToCheckout() {
+  const cart = getCart();
+  if (cart.length === 0) return;
+
+  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  currentCheckoutItem = {
+    type: "cart",
+    cartItems: [...cart],
+    price: total,
+    priceLabel: `Rs. ${total.toLocaleString()}`,
+    freeDelivery: true
+  };
+
+  closeCartDrawer();
+  renderCheckoutPreview();
+
+  const formView = document.getElementById("checkoutFormView");
+  const successView = document.getElementById("checkoutSuccessView");
+  const form = document.getElementById("orderCheckoutForm");
+  if (formView) formView.style.display = "block";
+  if (successView) successView.style.display = "none";
+  if (form) form.reset();
+
+  const modal = document.getElementById("checkoutModal");
+  if (modal) modal.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function checkoutCartViaWhatsApp() {
+  const cart = getCart();
+  if (cart.length === 0) return;
+
+  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const itemsText = cart.map((ci, i) => `${i + 1}. ${ci.name} (${ci.size}) x${ci.quantity} - Rs. ${(ci.price * ci.quantity).toLocaleString()}`).join('\n');
+
+  const waText = 
+`🛍️ *PIYORA LUXURY CART INQUIRY*
+----------------------------------------
+${itemsText}
+----------------------------------------
+💰 *Estimated Total:* Rs. ${total.toLocaleString()} (Cash on Delivery)
+🚚 *Delivery:* FREE Islandwide Delivery
+----------------------------------------
+Hi Piyora! I would like to order the perfumes in my shopping cart. Please confirm availability and delivery details!`;
+
+  window.open(`https://wa.me/${getWhatsAppNumber()}?text=${encodeURIComponent(waText)}`, '_blank');
+}
+
 /**
  * PIYORA | LUXURY PERFUME SHOWCASE & ORDER ENGINE
  * Hybrid Supabase Database + Secret PIN Admin Integration
@@ -975,7 +1247,33 @@ function renderCheckoutPreview() {
   const container = document.getElementById("checkoutItemPreview");
   if (!container || !currentCheckoutItem) return;
 
-  if (currentCheckoutItem.type === "single") {
+  if (currentCheckoutItem.type === "cart") {
+    const listHtml = (currentCheckoutItem.cartItems || []).map(ci => `
+      <div class="summary-cart-item-row">
+        <img src="${ci.image}" class="summary-ci-thumb" onerror="this.src='logo.jpg'">
+        <div class="summary-ci-info">
+          <div>
+            <div class="summary-ci-name">${ci.name}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${ci.brand} • <span style="color:var(--accent-gold);">${ci.size}</span> x${ci.quantity}</div>
+          </div>
+          <div class="summary-ci-price">Rs. ${(ci.price * ci.quantity).toLocaleString()}</div>
+        </div>
+      </div>
+    `).join('');
+
+    container.innerHTML = `
+      <div class="summary-details" style="width: 100%;">
+        <div class="summary-brand">PIYORA SHOPPING CART ORDER (${(currentCheckoutItem.cartItems || []).length} Items)</div>
+        <div class="summary-cart-items-preview">
+          ${listHtml}
+        </div>
+        <div class="summary-price-row" style="margin-top:0.75rem; border-top:1px dashed var(--border-glass); padding-top:0.5rem;">
+          <span class="summary-price">${currentCheckoutItem.priceLabel}</span>
+          <span class="summary-tag-free">🚚 FREE ISLANDWIDE DELIVERY</span>
+        </div>
+      </div>
+    `;
+  } else if (currentCheckoutItem.type === "single") {
     container.innerHTML = `
       <div class="summary-thumb-box">
         <img src="${currentCheckoutItem.image}" alt="${currentCheckoutItem.name}" class="summary-thumb-img" onerror="this.src='logo.jpg'">
@@ -1047,6 +1345,11 @@ async function handleOrderSubmit(e) {
 
   await syncOrderInsert(newOrder);
 
+  // If order was from cart, clear cart
+  if (currentCheckoutItem.type === "cart") {
+    clearCart();
+  }
+
   // Show success view
   const formView = document.getElementById("checkoutFormView");
   const successView = document.getElementById("checkoutSuccessView");
@@ -1074,6 +1377,15 @@ async function handleOrderSubmit(e) {
   // Pre-fill optional WhatsApp receipt button
   const waReceiptBtn = document.getElementById("successWaReceiptBtn");
   if (waReceiptBtn) {
+    let itemSummaryText = "";
+    if (currentCheckoutItem.type === "single") {
+      itemSummaryText = `${currentCheckoutItem.name} (${currentCheckoutItem.size})`;
+    } else if (currentCheckoutItem.type === "cart") {
+      itemSummaryText = (currentCheckoutItem.cartItems || []).map(ci => `• ${ci.name} (${ci.size}) x${ci.quantity} - Rs. ${(ci.price * ci.quantity).toLocaleString()}`).join('\n');
+    } else {
+      itemSummaryText = currentCheckoutItem.packTitle || "Discovery Pack";
+    }
+
     const waText = 
 `🛍️ *PIYORA ORDER RECEIPT - #${orderId}*
 ----------------------------------------
@@ -1081,7 +1393,8 @@ async function handleOrderSubmit(e) {
 📞 *Phone:* ${phone}
 📍 *Address:* ${address}, ${city}
 ${note ? `📝 *Note:* ${note}\n` : ''}----------------------------------------
-📦 *Item:* ${currentCheckoutItem.type === "single" ? `${currentCheckoutItem.name} (${currentCheckoutItem.size})` : `${currentCheckoutItem.packTitle}`}
+📦 *Order Items:*
+${itemSummaryText}
 💰 *Total (COD):* ${currentCheckoutItem.priceLabel}
 🚚 *Delivery:* FREE Islandwide Delivery Included
 ----------------------------------------
@@ -1223,6 +1536,26 @@ function renderProducts(items) {
 
             ${isInStock ? `
               <div class="card-btn-stack">
+                <div class="card-btn-row">
+                  <button 
+                    type="button" 
+                    class="btn-add-to-cart" 
+                    id="cart-btn-${p.id}"
+                    onclick="addToCart('${p.id}')"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>Add to Cart</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn-whatsapp-order btn-order-now" 
+                    id="order-btn-${p.id}"
+                    onclick="openCheckoutModal('${p.id}')"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                    <span>Buy Now</span>
+                  </button>
+                </div>
                 <a 
                   href="${buildWhatsAppUrl(p, activeSize)}" 
                   target="_blank" 
@@ -1230,18 +1563,9 @@ function renderProducts(items) {
                   class="btn-whatsapp-order btn-card-wa" 
                   id="wa-btn-${p.id}"
                 >
-                  <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
                   <span>Order via WhatsApp</span>
                 </a>
-                <button 
-                  type="button" 
-                  class="btn-whatsapp-order btn-order-now" 
-                  id="order-btn-${p.id}"
-                  onclick="openCheckoutModal('${p.id}')"
-                >
-                  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-                  <span>Order Now (Cash on Delivery)</span>
-                </button>
               </div>
             ` : `
               <a 
@@ -1428,6 +1752,28 @@ function openDetailsModal(productId) {
 
         ${isInStock ? `
           <div class="modal-btn-stack" style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.75rem;">
+            <div style="display:flex; gap:0.5rem;">
+              <button 
+                type="button" 
+                class="btn-add-to-cart" 
+                id="modal-cart-btn"
+                onclick="addToCart('${product.id}', '${currentSize}')"
+                style="flex:1; padding: 0.85rem 1rem; font-size: 0.92rem;"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <span>Add to Cart</span>
+              </button>
+              <button 
+                type="button" 
+                class="btn-whatsapp-order btn-order-now" 
+                id="modal-order-now-btn"
+                onclick="closeModal(); openCheckoutModal('${product.id}', '${currentSize}');"
+                style="flex:1; padding: 0.85rem 1rem; font-size: 0.92rem; cursor: pointer;"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                <span>Buy Now (COD)</span>
+              </button>
+            </div>
             <a 
               href="${buildWhatsAppUrl(product, currentSize)}" 
               target="_blank" 
@@ -1436,19 +1782,9 @@ function openDetailsModal(productId) {
               id="modal-wa-btn"
               style="padding: 0.85rem 1.5rem; font-size: 0.92rem;"
             >
-              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.585 1.761.884 2.792.884l.006-.001c3.18 0 5.766-2.587 5.767-5.766.001-3.182-2.585-5.769-5.766-5.769zm3.375 8.167c-.145.408-.847.785-1.18.835-.327.05-.75.074-2.155-.508-1.796-.745-2.955-2.57-3.044-2.691-.089-.12-1.745-2.324-1.745-4.433 0-2.11 1.104-3.144 1.498-3.555.394-.411.859-.514 1.146-.514.286 0 .573.003.824.015.267.013.626-.101.979.745.367.881 1.254 3.064 1.362 3.285.108.22.18.479.036.768-.144.288-.216.468-.432.72-.216.252-.455.563-.65.755-.216.216-.441.451-.19.882.252.432 1.121 1.849 2.404 2.993 1.65 1.472 3.042 1.928 3.474 2.144.432.216.684.18.936-.108.252-.288 1.077-1.258 1.364-1.69.287-.432.573-.36.967-.216.394.144 2.502 1.179 2.932 1.395.43.216.717.324.824.504.108.18.108 1.044-.216 1.452z"/></svg>
               <span>Order via WhatsApp (${currentSize})</span>
             </a>
-            <button 
-              type="button" 
-              class="btn-whatsapp-order btn-order-now" 
-              id="modal-order-now-btn"
-              onclick="closeModal(); openCheckoutModal('${product.id}', '${currentSize}');"
-              style="padding: 0.85rem 1.5rem; font-size: 0.92rem; cursor: pointer;"
-            >
-              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-              <span>Order Now - Cash on Delivery (${currentSize})</span>
-            </button>
           </div>
         ` : `
           <a 
@@ -1489,6 +1825,10 @@ function changeModalSize(productId, sizeKey) {
     const priceVal = document.getElementById("modal-price-val");
     if (priceVal) priceVal.textContent = sizeData.label;
 
+    const cartBtn = document.getElementById("modal-cart-btn");
+    if (cartBtn && product.in_stock !== false) {
+      cartBtn.onclick = () => addToCart(product.id, sizeKey);
+    }
     const waBtn = document.getElementById("modal-wa-btn");
     if (waBtn && product.in_stock !== false) {
       waBtn.href = buildWhatsAppUrl(product, sizeKey);
@@ -1703,6 +2043,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadReviewsData();
     initStates();
     renderProducts(getActiveCatalog());
+    updateCartUI();
     initPackBuilder();
     renderStorefrontReviews();
 
