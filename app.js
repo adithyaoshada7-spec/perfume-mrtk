@@ -1708,10 +1708,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Update WhatsApp links on page to match settings
     const currentNumber = getWhatsAppNumber();
-    const chatBtn = document.querySelector(".header-contact-btn");
-    if (chatBtn) {
-      chatBtn.href = `https://wa.me/${currentNumber}?text=${encodeURIComponent("Hi Piyora! I would like to inquire about your Decants and 15ml Perfume Packs.")}`;
-    }
+    const chatBtns = document.querySelectorAll(".header-contact-btn, .hero-social-pill.wa");
+    chatBtns.forEach(btn => {
+      btn.href = `https://wa.me/${currentNumber}?text=${encodeURIComponent("Hi Piyora! I would like to inquire about your Decants and 15ml Perfume Packs.")}`;
+    });
     const indicatorText = document.querySelector(".client-preview-badge strong");
     if (indicatorText) {
       indicatorText.textContent = `+${currentNumber.slice(0, 2)} ${currentNumber.slice(2, 4)} ${currentNumber.slice(4, 7)} ${currentNumber.slice(7)}`;
