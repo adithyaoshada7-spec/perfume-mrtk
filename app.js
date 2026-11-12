@@ -652,7 +652,7 @@ async function syncProductUpdate(product) {
   }
   product.image = product.images[0];
 
-  // Update local runtime
+  // Update local runtime & cache
   const idx = RUNTIME_CATALOG.findIndex(p => p.id === product.id);
   if (idx !== -1) RUNTIME_CATALOG[idx] = product;
   localStorage.setItem("piyora_catalog", JSON.stringify(RUNTIME_CATALOG));
@@ -661,29 +661,48 @@ async function syncProductUpdate(product) {
   const client = getSupabaseClient();
   if (client) {
     try {
-      await client
+      const basePayload = {
+        name: product.name,
+        brand: product.brand,
+        category: product.category,
+        gender: product.gender,
+        image: product.image,
+        badge: product.badge,
+        sizes: product.sizes,
+        top_notes: product.topNotes || "",
+        heart_notes: product.heartNotes || "",
+        base_notes: product.baseNotes || "",
+        longevity: product.longevity || "",
+        description: product.description || "",
+        in_stock: product.in_stock !== false
+      };
+
+      // 1. First attempt: include 'images' column if supported by table
+      const res1 = await client
         .from('perfumes')
-        .update({
-          name: product.name,
-          brand: product.brand,
-          category: product.category,
-          gender: product.gender,
-          image: product.image,
-          images: product.images,
-          badge: product.badge,
-          sizes: product.sizes,
-          top_notes: product.topNotes,
-          heart_notes: product.heartNotes,
-          base_notes: product.baseNotes,
-          longevity: product.longevity,
-          description: product.description,
-          in_stock: product.in_stock !== false
-        })
+        .update({ ...basePayload, images: product.images })
         .eq('id', product.id);
+
+      if (res1.error) {
+        console.warn("Supabase update with 'images' column failed (" + res1.error.message + "). Falling back to 'image' column only...");
+        // 2. Fallback attempt: update standard 'image' column which always exists!
+        const res2 = await client
+          .from('perfumes')
+          .update(basePayload)
+          .eq('id', product.id);
+
+        if (res2.error) {
+          console.error("Supabase update fallback error:", res2.error);
+          return { success: false, error: res2.error };
+        }
+      }
+      return { success: true };
     } catch (e) {
-      console.error("Supabase update error:", e);
+      console.error("Supabase update exception:", e);
+      return { success: false, error: e };
     }
   }
+  return { success: true };
 }
 
 async function syncProductInsert(product) {
@@ -698,31 +717,49 @@ async function syncProductInsert(product) {
   const client = getSupabaseClient();
   if (client) {
     try {
-      await client
+      const basePayload = {
+        id: product.id,
+        name: product.name,
+        brand: product.brand,
+        category: product.category,
+        gender: product.gender,
+        image: product.image,
+        badge: product.badge,
+        accords: product.accords || ["Luxury Fragrance"],
+        top_notes: product.topNotes || "",
+        heart_notes: product.heartNotes || "",
+        base_notes: product.baseNotes || "",
+        longevity: product.longevity || "",
+        description: product.description || "",
+        sizes: product.sizes,
+        in_stock: product.in_stock !== false,
+        display_order: 0
+      };
+
+      // 1. First attempt: include 'images' column
+      const res1 = await client
         .from('perfumes')
-        .insert({
-          id: product.id,
-          name: product.name,
-          brand: product.brand,
-          category: product.category,
-          gender: product.gender,
-          image: product.image,
-          images: product.images,
-          badge: product.badge,
-          accords: product.accords,
-          top_notes: product.topNotes,
-          heart_notes: product.heartNotes,
-          base_notes: product.baseNotes,
-          longevity: product.longevity,
-          description: product.description,
-          sizes: product.sizes,
-          in_stock: product.in_stock !== false,
-          display_order: 0
-        });
+        .insert({ ...basePayload, images: product.images });
+
+      if (res1.error) {
+        console.warn("Supabase insert with 'images' column failed (" + res1.error.message + "). Falling back to 'image' column only...");
+        // 2. Fallback attempt: insert without 'images'
+        const res2 = await client
+          .from('perfumes')
+          .insert(basePayload);
+
+        if (res2.error) {
+          console.error("Supabase insert fallback error:", res2.error);
+          return { success: false, error: res2.error };
+        }
+      }
+      return { success: true };
     } catch (e) {
-      console.error("Supabase insert error:", e);
+      console.error("Supabase insert exception:", e);
+      return { success: false, error: e };
     }
   }
+  return { success: true };
 }
 
 async function syncProductDelete(productId) {
